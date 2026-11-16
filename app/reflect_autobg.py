@@ -827,7 +827,8 @@ def finish(opacity, length, fade, even, hidden, lift, shadow, origcar, straight,
                     t_ = np.clip((sd_ - a_) / (b2_ - a_), 0, 1)[..., None]
                     m_ = ((sd_ >= a_) if i_ == 0 else (sd_ > a_)) & (sd_ <= b2_)
                     ub_ = np.where(m_[..., None], lv_[i_] * (1 - t_) + lv_[i_ + 1] * t_, ub_)
-                band_ = np.maximum(0.04 * (x1c - x0c) + 0.3 * dep_, 1.0)
+                # narrow and capped: only the bumper corner area at each end, never reaching in to the tyres
+                band_ = np.clip(0.03 * (x1c - x0c) + 0.15 * dep_, 1.0, 0.05 * (x1c - x0c))
                 em_ = np.maximum(np.exp(-((xx_ - x0c) / band_) ** 2), np.exp(-((xx_ - x1c) / band_) ** 2))
                 # never under a tyre: a tyre right at the car's end (rear tyre of a 3-4 shot) had its reflection
                 # smeared sideways -> much weaker than the other tyre
