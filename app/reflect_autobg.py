@@ -130,7 +130,7 @@ def clean(P, hidden=0.3, lift=10, origcar=False, opacity=1.0, length=0.4, fade=1
         if force is None and hidden > 0.1:
             # the 40 % of v2's hidden-tyre reflection that is kept: bright alloy parts removed (small opening),
             # only in the hidden-wheel columns / floor zone, so nothing else changes shape
-            ko_ = int(max(5, 0.75 * P.get("wheel_h", 0.1 * P["bw"]))) | 1   # 11-16: opening as big as the rim -> NO alloy left, only the dark tyre tone
+            ko_ = int(max(5, 0.08 * P.get("wheel_h", 0.1 * P["bw"]))) | 1
             opn_ = np.minimum(cv2.morphologyEx(R, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (ko_, ko_))), R)
             hw_ = np.clip((1 - k) / max(1e-3, 1 - hidden), 0, 1)      # 1 where a hidden wheel, 0 at visible ones
             R = R * (1 - hw_) + opn_ * hw_
@@ -795,51 +795,6 @@ def finish(opacity, length, fade, even, hidden, lift, shadow, origcar, straight,
         up = np.zeros_like(up)
         edge_w = 0.0
     else:
-        if not STATE.get("frontrear"):
-            # 3-4 views: the reflection stopped in a hard vertical edge straight down from the car's outermost point
-            # (front bumper corner). Fade it out smoothly over a band at the car's left / right ends that widens
-            # with depth below the car, so the edge melts away instead of sticking out
-            ca_ = STATE["car_hi"][..., 3] > 128
-            cols_ = np.where(ca_.any(0))[0]
-            if len(cols_) > 10:
-                x0c, x1c = float(cols_.min()), float(cols_.max())
-                botc = np.full(W2, -1.0, np.float32)
-                botc[cols_] = H2 - 1 - np.argmax(ca_[::-1, cols_], 0)
-                botc = np.interp(np.arange(W2), cols_, botc[cols_]).astype(np.float32)   # car's bottom per column
-                # smooth it (lowest points win, then blurred): the jump between bumper and tyre bottoms made the
-                # band jump too -> a vertical line in the reflection
-                kd_ = max(3, int(0.1 * (x1c - x0c))) | 1
-                botc = cv2.dilate(botc[None], np.ones((1, kd_), np.uint8))[0]
-                botc = cv2.GaussianBlur(botc[None], (0, 0), max(1.0, 0.05 * (x1c - x0c)))[0]
-                yy_ = np.arange(H2, dtype=np.float32)[:, None]
-                xx_ = np.arange(W2, dtype=np.float32)[None, :]
-                dep_ = np.maximum(yy_ - botc[None, :], 0)
-                # (11-16: fading the reflection out at the ends, or blurring it all over, hid the reflection - now only
-                #  the outer edge is softened, the reflection keeps its full strength and detail)
-                # soft edge: sideways blur, only in a band around the car's left / right end, stronger with depth
-                smax_ = max(2.0, 0.012 * W2)
-                sigs_ = [0.0] + [smax_ / 2 ** i for i in range(3, -1, -1)]
-                lv_ = [up] + [cv2.GaussianBlur(up, (0, 0), sigmaX=s_, sigmaY=0.01) for s_ in sigs_[1:]]
-                sd_ = np.clip(0.3 * dep_, 0, smax_)
-                ub_ = np.zeros_like(up)
-                for i_ in range(len(sigs_) - 1):
-                    a_, b2_ = sigs_[i_], sigs_[i_ + 1]
-                    t_ = np.clip((sd_ - a_) / (b2_ - a_), 0, 1)[..., None]
-                    m_ = ((sd_ >= a_) if i_ == 0 else (sd_ > a_)) & (sd_ <= b2_)
-                    ub_ = np.where(m_[..., None], lv_[i_] * (1 - t_) + lv_[i_ + 1] * t_, ub_)
-                # narrow and capped: only the bumper corner area at each end, never reaching in to the tyres
-                band_ = np.clip(0.03 * (x1c - x0c) + 0.15 * dep_, 1.0, 0.05 * (x1c - x0c))
-                em_ = np.maximum(np.exp(-((xx_ - x0c) / band_) ** 2), np.exp(-((xx_ - x1c) / band_) ** 2))
-                # never under a tyre: a tyre right at the car's end (rear tyre of a 3-4 shot) had its reflection
-                # smeared sideways -> much weaker than the other tyre
-                tcol_ = np.zeros(W2, np.float32)
-                for w_ in STATE.get("wheels") or []:
-                    tx0_, _, tx1_, _ = [int(v) for v in w_["box"]]
-                    pd_ = int(0.15 * (tx1_ - tx0_))
-                    tcol_[max(0, tx0_ - pd_):max(0, tx1_ + pd_)] = 1.0
-                tcol_ = cv2.GaussianBlur(tcol_[None], (0, 0), max(2.0, 0.01 * W2))[0]
-                em_ = (em_ * (1 - tcol_[None, :]))[..., None]
-                up = up * (1 - em_) + ub_ * em_
         res = bg_hi + up
     if shadow and gen_sh:
         STATE["sh_use"] = gen_shadow(STATE["car_hi"], sh_dark, sh_soft, sh_contact)
@@ -920,7 +875,7 @@ def finish(opacity, length, fade, even, hidden, lift, shadow, origcar, straight,
             wl_.append(w_)
         # 11-16: replaced by the reference look - plain matte column exactly the tyre's width, round top corners,
         # soft sides, long linear fade (the mirrored-tyre version above is no longer drawn)
-        res = WH.tyre_column(res, STATE["car_sharp"], STATE["wheels"], strength=0.2625)   # 11-16: opacity +5 % (0.25 -> 0.2625)
+        res = WH.tyre_column(res, STATE["car_sharp"], STATE["wheels"], strength=0.2625, mirror=False)   # column: exactly each tyre's width at the floor   # 11-16: opacity +5 % (0.25 -> 0.2625)
     else:
         sl_ = STATE.get("slivers") or []
         full_ = [w_ for w_ in STATE.get("wheels", []) if not any(w_ is x_ for x_ in sl_)]
