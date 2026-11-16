@@ -822,8 +822,6 @@ def finish(opacity, length, fade, even, hidden, lift, shadow, origcar, straight,
     if use_t:
         # reflection ON TOP of the AutoBG shadow: under it, the shadow's thin edge right at the tyre showed
         # as a light line between tyre and reflection
-        # a faint mirror of the sills between the two tyres only (no bumpers / front / rear of the car)
-        res = WH.body_strip(res, STATE["car_sharp"], STATE["wheels"], 0.25)
         res = WH.flip(res, STATE["car_sharp"], STATE["wheels"], t_str, t_len, fade, t_gblur, 1.0, 1.0, t_det, t_shift, t_con, t_gloss)
     elif STATE.get("frontrear"):
         # front / rear view: v2 put its tyre reflections beside the tyres -> those are removed (above) and the
