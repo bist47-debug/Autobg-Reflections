@@ -495,7 +495,10 @@ def tyre_column(base, car, wheels, strength=0.25, length=1.1, soft=0.02, spread=
         tw = tw_eq if equal else m_["tw"]
         if ellipse:
             tw = m_["fw"]
-        L = max(4.0, min(length * tw, 0.9 * (H_ - cy)))
+        # side shots: both tyres get the SAME fade length and tone (the bigger / nearer tyre's own size made its
+        # reflection longer and more visible than the other one)
+        twL = float(np.mean([q["fw"] for q in meas])) if ellipse else tw
+        L = max(4.0, min(length * twL, 0.9 * (H_ - cy)))
         sx = soft * tw + 1.0
         pad = int(3 * (sx + spread * tw)) + 2
         cen_ = m_["fcen"] if ellipse else m_["cen"]
@@ -516,7 +519,7 @@ def tyre_column(base, car, wheels, strength=0.25, length=1.1, soft=0.02, spread=
             # round tyre gave square shoulders - edges sticking out). The oval is longer than the fade, so it fades out
             # before its own bottom; its top is the tyre's round bottom mirrored (stretched)
             rx = tw / 2.0
-            ry = max(m_["th"] / 2.0, 0.6 * L)
+            ry = max(float(np.mean([q["th"] for q in meas])) / 2.0, 0.6 * L)
             u = (xs_[None, :] - cen_) / rx
             v = (dep - ry) / ry
             e = np.sqrt(u ** 2 + v ** 2)
@@ -529,6 +532,8 @@ def tyre_column(base, car, wheels, strength=0.25, length=1.1, soft=0.02, spread=
         prof = np.maximum(prof, 0.6 * np.clip(1 - (dep - int(up) + 1) / 3.0, 0, 1))   # no light seam right under the tyre (at the REAL contact)
         k = (prof * M * (1 - np.clip((a[ya:yb2, xa:xb] - 0.9) / 0.1, 0, 1)))[..., None]
         col = np.asarray(w.get("col", (22, 22, 26)), np.float32).reshape(1, 1, 3)
+        if ellipse:
+            col = np.mean([np.asarray(q["w"].get("col", (22, 22, 26)), np.float32) for q in meas], 0).reshape(1, 1, 3)
         out[ya:yb2, xa:xb] = out[ya:yb2, xa:xb] * (1 - k) + col * k
     return out
 
