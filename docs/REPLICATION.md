@@ -113,32 +113,31 @@ Defaults live in `BATCH` in `app/reflect_autobg.py` (team page and batch) and in
 | Front/back | Car width < 1.8 × height, two lowest tyres at the left and right ends on the same line; **or** the car outline is mirror-symmetric ≥ 0.88 (then a missing tyre is mirrored from the found one) |
 | 3/4 | Everything else |
 
-### 3.2 Side shots: no AI, mirrored tyres only
+### 3.2 Side shots: no AI, tyre reflections only (frozen 2026-11-16)
 
-- Real tyres (from the tyre model's outline) mirrored about their floor contact line.
-- Side shots (11-16 evening): same reflection as front / back (`WH.tyre_column`): the round tyre mirrored and stretched into a smooth oval (full tyre width, no square shoulders), soft sides, linear fade over 1.1 × tyre width, strength **0.193**. Cars placed with the tyre line at 88 % of the height; every reflection fades out inside the frame.
-- Nothing between the tyres: only the tyres are reflected (the sill mirror was removed 2026-11-16).
-- Edges: anti-aliased outline with an ellipse fit for round tyres, so the outline is crisp.
+- `WH.tyre_column(..., ellipse=True, length=0.68, up=5)`: each tyre's round bottom mirrored and stretched
+  into a smooth oval (full tyre width, no square shoulders), soft sides, plain matte tone, no rim detail.
+- Linear fade over **0.68 × tyre width**, strength **0.193**. Both tyres get the same fade length and tone.
+- Nothing between the tyres (the sill mirror was removed 2026-11-16).
 
-### 3.3 Front/back shots: AI reflection of the body, stretched tyre reflections
+### 3.3 Front/back shots: AI reflection of the body + tyre columns (frozen 2026-11-16)
 
 - The AI's own tyre reflections are removed (it places them wrongly on these views).
-- Each real tyre is mirrored with its tread and gloss, filled to full width above the round
-  bottom, moved up until the reflection is as wide as the tyre, then **2 px lower**.
-- **Stretched 2.5× vertically**, more on half-hidden tyres so the reflection always fades out and is never cut.
-  The outline is replaced by its convex shape (no bumps from mudflaps or tow eyes).
-- Strength **0.35**. Fade 0.45 × wheel height, but **never shorter than 20 % of the car height**,
-  so it shows below dark AutoBG shadows.
-- Known limit: on cars with a low front bumper (e.g. Fiesta front), the bumper hides most of the
-  tyre's floor reflection. Only a thin strip can show, which is physically correct.
+- `WH.tyre_column(..., strength=0.2625, mirror=False)`: each tyre's reflection is a plain matte column
+  **exactly that tyre's width at the floor**, top corners = the tyre's round corners mirrored (one shared,
+  symmetric corner shape for all tyres), soft straight sides, **pushed up 8 px**.
+- Linear fade over **1.1 × tyre width** (same length and tone for every tyre), always ending inside the frame.
+- The dark AutoBG shadow right under the tyres can hide the top of the reflection; if it looks too low,
+  lengthen the fade, never weaken the shadow.
 
-### 3.4 3/4 shots: AI reflection
+### 3.4 3/4 shots: AI reflection (this morning's lock, frozen 2026-11-16)
 
-- AI reflection opacity **0.4**, fade **0.45 × wheel height** ("fade like side shots": straight
+- AI reflection opacity **0.42** (0.4 + 5 %), fade **0.45 × wheel height** ("fade like side shots": straight
   down from each tyre's contact, the same for every tyre), even-out 0.6, reflection colour 1, moved 2 px.
 - Hidden wheels (not visible in the photo): the AI's reflection is kept at **40 %**, with the bright alloy removed.
 - **Third tyre** (hardly visible, beside the two main ones): the AI's version is removed and the real
-  tyre is mirrored like on front/back shots, at strength **0.25**.
+  tyre is mirrored like on front/back shots, at strength **0.2625**.
+- No bumper-edge softening (tried 11-16, reverted).
 - Light cars (white/silver): the reflection may be up to 25 levels lighter than the floor (`--bright 25`), soft-capped.
 
 ### 3.5 Shadows (all views)
@@ -152,7 +151,7 @@ Defaults live in `BATCH` in `app/reflect_autobg.py` (team page and batch) and in
 
 - Prompt: `Add a realistic floor reflection of the car on a glossy grey showroom floor.`
 - 20 steps, `true_cfg_scale` 4.0, seed 42, negative prompt `" "`.
-- Working size 1024 px wide; the car is placed at the bottom 95 % of the frame, max 55 % of the width/height.
+- Working size 1024 px wide; the car is placed with the tyre line at 88 % of the frame height (every reflection fades out inside the frame), max 55 % of the width/height.
 - The AI image is aligned back onto the real car (`align_v2`, OpenCV ECC affine); only the **floor change** is used, upscaled to full resolution.
 - Lightning 4-step LoRA (`lightx2v/Qwen-Image-Edit-2511-Lightning`) is available as "fast" mode (~3 s),
   but it was judged too grainy and is **off** in the locked setup.
