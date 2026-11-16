@@ -448,7 +448,7 @@ def flip(base, car, wheels, strength=0.6, length=0.55, fade=1.0, blur=0.0, far=1
     return out
 
 
-def tyre_column(base, car, wheels, strength=0.25, length=1.1, soft=0.02, spread=0.05, up=8, equal=False, ellipse=False):
+def tyre_column(base, car, wheels, strength=0.25, length=1.1, soft=0.02, spread=0.05, up=8, equal=False, ellipse=False, curve=False):
     """front / back views (11-16 reference look): each tyre's reflection is a plain, matte, slightly darker
     column of floor EXACTLY the tyre's width - no tread / rim detail. Its top corners are the tyre's own round
     bottom corners mirrored (read from the cut-out in this photo), the sides are soft and get a little softer
@@ -529,8 +529,8 @@ def tyre_column(base, car, wheels, strength=0.25, length=1.1, soft=0.02, spread=
             v = (dep - ry) / ry
             e = np.sqrt(u ** 2 + v ** 2)
             M = np.clip((1.0 - e) * min(rx, ry) + 0.5, 0, 1)    # anti-aliased oval edge
-        else:
-            # front / back (11-16 evening): the column narrows as it goes down, a gently curved U instead of straight
+        elif curve:
+            # front / back (11-16 evening, then switched off - back to the straight reference look): the column narrows as it goes down, a gently curved U instead of straight
             # sides: half width x sqrt(1 - (depth / (1.4 x fade))^2) -> ~70 % of the tyre width where the fade ends
             hw0 = tw / 2.0
             hwd = hw0 * np.sqrt(np.clip(1 - (np.maximum(dep, 0) / (1.4 * L)) ** 2, 0, 1))
