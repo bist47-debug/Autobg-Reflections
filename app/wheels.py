@@ -448,7 +448,7 @@ def flip(base, car, wheels, strength=0.6, length=0.55, fade=1.0, blur=0.0, far=1
     return out
 
 
-def tyre_column(base, car, wheels, strength=0.25, length=1.1, soft=0.02, spread=0.05, up=8, equal=False, ellipse=False, curve=False):
+def tyre_column(base, car, wheels, strength=0.25, length=1.1, soft=0.02, spread=0.05, up=8, equal=False, ellipse=False, curve=False, mirror=True):
     """front / back views (11-16 reference look): each tyre's reflection is a plain, matte, slightly darker
     column of floor EXACTLY the tyre's width - no tread / rim detail. Its top corners are the tyre's own round
     bottom corners mirrored (read from the cut-out in this photo), the sides are soft and get a little softer
@@ -483,7 +483,21 @@ def tyre_column(base, car, wheels, strength=0.25, length=1.1, soft=0.02, spread=
         prof_g = np.where(inside[c0:c1 + 1], g[c0:c1 + 1], lim)      # gaps inside the width filled
         mc_ = np.where(np.asarray(w["m"]).any(0))[0]               # the tyre's FULL width (its mask), for ellipse mode
         fw, fcen = (float(mc_.max() - mc_.min() + 1), w["box"][0] + (mc_.min() + mc_.max()) / 2.0) if len(mc_) else (float(c1 - c0 + 1), X0 + (c0 + c1) / 2.0)
-        meas.append(dict(w=w, cy=cyr - int(up), cen=X0 + (c0 + c1) / 2.0, tw=float(c1 - c0 + 1), g=prof_g, fw=fw, fcen=fcen, th=th))
+        # the tyre's silhouette from its floor contact upwards: half width (x half the full tyre width) per height
+        # (x tyre height), never narrowing upwards - mirrored, it is the exact outline of the reflection (11-16 reference)
+        hp = np.zeros(101, np.float32)
+        mm_ = np.asarray(w["m"])
+        if mm_.any() and len(mc_):
+            rws_ = np.where(mm_.any(1))[0]
+            rb_ = rws_.max()
+            hs_, ws_ = [], []
+            for r_ in range(rb_, rws_.min() - 1, -1):
+                cc_ = np.where(mm_[r_])[0]
+                if len(cc_):
+                    hs_.append((rb_ - r_) / float(th)); ws_.append((cc_.max() - cc_.min() + 1) / max(1.0, fw))
+            if hs_:
+                hp = np.interp(np.linspace(0, 1, 101), hs_, np.maximum.accumulate(ws_)).astype(np.float32)
+        meas.append(dict(w=w, cy=cyr - int(up), cen=X0 + (c0 + c1) / 2.0, tw=float(c1 - c0 + 1), g=prof_g, fw=fw, fcen=fcen, th=th, hp=hp))
     if not meas:
         return out
     # 11-16: every tyre's reflection gets the SAME width (the widest tyre's), centred under its own tyre; the
@@ -493,7 +507,7 @@ def tyre_column(base, car, wheels, strength=0.25, length=1.1, soft=0.02, spread=
     for m_ in meas:
         w, cy = m_["w"], m_["cy"]
         tw = tw_eq if equal else m_["tw"]
-        if ellipse:
+        if ellipse or (mirror and m_["hp"].max() > 0):
             tw = m_["fw"]
         # side shots: both tyres get the SAME fade length and tone (the bigger / nearer tyre's own size made its
         # reflection longer and more visible than the other one)
@@ -501,7 +515,7 @@ def tyre_column(base, car, wheels, strength=0.25, length=1.1, soft=0.02, spread=
         L = max(4.0, min(length * twL, 0.9 * (H_ - cy)))
         sx = soft * tw + 1.0
         pad = int(3 * (sx + spread * tw)) + 2
-        cen_ = m_["fcen"] if ellipse else m_["cen"]
+        cen_ = m_["fcen"] if (ellipse or (mirror and m_["hp"].max() > 0)) else m_["cen"]
         xl, xr = cen_ - (tw - 1) / 2.0, cen_ + (tw - 1) / 2.0
         xa, xb = max(0, int(np.floor(xl)) - pad), min(W_, int(np.ceil(xr)) + 1 + pad)
         ya, yb2 = max(0, cy - 1), min(H_, int(cy + L) + 2)
@@ -519,6 +533,15 @@ def tyre_column(base, car, wheels, strength=0.25, length=1.1, soft=0.02, spread=
         src = np.interp(np.clip((xs_ - xl) / max(1.0, tw - 1), 0, 1), u101, gsh)
         gj = np.where(ok_, src, np.inf).astype(np.float32)    # where each column's reflection starts (mirrored corner)
         M = np.clip(dep - gj[None, :] + 1.0, 0, 1)             # anti-aliased top edge = the tyre's corners mirrored
+        if mirror and not ellipse and all(q["hp"].max() > 0 for q in meas):
+            # front / back (11-16 reference): the reflection is the tyre's own silhouette mirrored - its width at each
+            # depth = the tyre's width at the same height above the floor (one shared, symmetric profile for all tyres,
+            # each scaled to its own tyre), so it widens slightly from the contact patch like the real tyre does
+            hpm = np.mean([q["hp"] for q in meas], 0)
+            fw_, fc_ = m_["fw"], m_["fcen"]
+            dr_ = np.maximum(dep - int(up), 0)                  # depth below the REAL contact
+            hw_ = 0.5 * fw_ * np.interp(dr_ / (2.0 * float(m_["th"])), np.linspace(0, 1, 101), hpm)   # mirrored x2 stretched (perspective, as in the reference)
+            M = np.clip(hw_ - np.abs(xs_[None, :] - fc_) + 0.5, 0, 1) * np.clip(dep + 1.0, 0, 1)
         if ellipse:
             # side shots: the round tyre mirrored and STRETCHED down into a long smooth oval (a straight column under a
             # round tyre gave square shoulders - edges sticking out). The oval is longer than the fade, so it fades out
