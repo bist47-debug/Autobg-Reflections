@@ -192,6 +192,7 @@ def clean(P, hidden=0.3, lift=10, origcar=False, opacity=1.0, length=0.4, fade=1
     # floor (the straight lines under the front / rear and along the side, through the lowest points: bumper
     # corner, front tyre, rear tyre) and the reflection fades at right angles away from each of those lines
     L = max(1.0, length * P["bh"])
+    L = max(1.0, min(L, 0.9 * (G.H - float(P["ybf"].max()))))       # fade ends inside the frame, never cut by its edge
     t = (yy - P["ybf"][None, :]) / L
     if straight > 0:
         cols = np.where((car[..., 3] > 128).any(0))[0]
@@ -217,6 +218,7 @@ def clean(P, hidden=0.3, lift=10, origcar=False, opacity=1.0, length=0.4, fade=1
                 # contacts, over `tlen` x wheel height - every tyre starts equally strong and fades the same
                 L = max(1.0, tlen * P["wheel_h"])
                 yh_all = np.interp(np.arange(G.W), cols, yh)
+                L = max(1.0, min(L, 0.9 * (G.H - float(yh_all[cols].max()))))   # fade ends inside the frame
                 t = (yy - yh_all[None, :]) / L
             else:
                 dist = cv2.distanceTransform(Z, cv2.DIST_L2, 5)

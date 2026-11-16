@@ -350,6 +350,9 @@ def flip(base, car, wheels, strength=0.6, length=0.55, fade=1.0, blur=0.0, far=1
         yl = ly + slope * (xs - lx)                          # contact line per column
         ov = max(3, int(0.02 * th))                          # start a few px UNDER the tyre's soft edge
         Lf = float(w["flen"]) if w.get("flen") else length * th     # fixed fade length in px (front/back) or x wheel height
+        # car placed low in the frame: the fade must end BEFORE the picture's bottom edge (it ran out of the
+        # frame at full strength -> a hard cut at the bottom)
+        Lf = max(2.0, min(Lf, 0.9 * (H_ - float(yl.max()))))
         R0, R1 = int(np.floor(yl.min())) + 1 - ov, int(min(H_, np.ceil(yl.max()) + max(th, Lf) + 1))
         if R1 <= R0 or X1 <= X0:
             continue
