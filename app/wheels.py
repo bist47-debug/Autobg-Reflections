@@ -304,7 +304,7 @@ def scale(wheels, f):
     return out
 
 
-def flip(base, car, wheels, strength=0.6, length=0.55, fade=1.0, blur=0.0, far=1.0, hidden=1.0, detail=0.1, shift=0.0, contact=0.4, gloss=0.0, darken=False, hug=False):
+def flip(base, car, wheels, strength=0.6, length=0.55, fade=1.0, blur=0.0, far=1.0, hidden=1.0, detail=0.1, shift=0.0, contact=0.4, gloss=0.0, darken=False, hug=False, edge=0.0):
     """base: BGR float image the car sits in (same size as car). Each wheel's reflection = its real
     silhouette (+ the hidden part of its ellipse), mirrored about the tyre's own contact line (slanted in
     perspective views), dark tyre tone with a little real detail near the tyre. Linear fade over
@@ -383,7 +383,7 @@ def flip(base, car, wheels, strength=0.6, length=0.55, fade=1.0, blur=0.0, far=1
         full = vis if "ma" in w else cv2.remap(w["full"].astype(np.float32), (sx - MX0).astype(np.float32), my, cv2.INTER_LINEAR, borderValue=0)
         below = (depm > -ov).astype(np.float32)
         shape = (vis + hidden * np.clip(full - vis, 0, 1)) * below
-        shape = cv2.GaussianBlur(shape, (0, 0), 0.6)         # outline is already anti-aliased
+        shape = cv2.GaussianBlur(shape, (0, 0), max(0.6, edge * th))   # outline is already anti-aliased; edge: softer outline (x wheel height)
         if w.get("soft_sides"):
             # front/back: sides get softer with depth, like a real floor reflection (no straight hard side edges)
             sb = cv2.GaussianBlur(shape, (0, 0), sigmaX=sxs, sigmaY=0.5)
@@ -448,7 +448,7 @@ def flip(base, car, wheels, strength=0.6, length=0.55, fade=1.0, blur=0.0, far=1
     return out
 
 
-def tyre_column(base, car, wheels, strength=0.25, length=1.1, soft=0.02, spread=0.05, up=3):
+def tyre_column(base, car, wheels, strength=0.25, length=1.1, soft=0.02, spread=0.05, up=5):
     """front / back views (11-16 reference look): each tyre's reflection is a plain, matte, slightly darker
     column of floor EXACTLY the tyre's width - no tread / rim detail. Its top corners are the tyre's own round
     bottom corners mirrored (read from the cut-out in this photo), the sides are soft and get a little softer
@@ -456,6 +456,8 @@ def tyre_column(base, car, wheels, strength=0.25, length=1.1, soft=0.02, spread=
     H_, W_ = base.shape[:2]
     out = base.astype(np.float32).copy()
     a = car[..., 3].astype(np.float32) / 255
+    # pass 1: measure each tyre at the floor (width + its round corner profile)
+    meas = []
     for w in wheels:
         X0, Y0, X1, Y1 = [int(v) for v in w["box"]]
         X0, X1 = max(0, X0), min(W_, X1)
@@ -470,29 +472,37 @@ def tyre_column(base, car, wheels, strength=0.25, length=1.1, soft=0.02, spread=
         if not has.any():
             continue
         bot = np.where(has, lo + sub.shape[0] - 1 - np.argmax(sub[::-1], 0), -1)   # lowest solid row per column
-        cy = int(bot.max()) - int(up)                         # the tyre's floor contact, reflection moved up `up` px (11-16: 3)
-        g = (cy + int(up) - bot).astype(np.float32)          # corner depth, measured from the REAL contact
+        cyr = int(bot.max())                                  # the tyre's REAL floor contact
+        g = (cyr - bot).astype(np.float32)                    # corner depth per column
         lim = max(3.0, 0.35 * th)                             # deeper than the tyre's round corner = not the tyre
         inside = has & (g <= lim)
         cols = np.where(inside)[0]
         if len(cols) < 3:
             continue
-        c0, c1 = cols.min(), cols.max()                       # the tyre's width at the floor
-        tw = float(c1 - c0 + 1)
+        c0, c1 = cols.min(), cols.max()
+        prof_g = np.where(inside[c0:c1 + 1], g[c0:c1 + 1], lim)      # gaps inside the width filled
+        meas.append(dict(w=w, cy=cyr - int(up), cen=X0 + (c0 + c1) / 2.0, tw=float(c1 - c0 + 1), g=prof_g))
+    if not meas:
+        return out
+    # 11-16: every tyre's reflection gets the SAME width (the widest tyre's), centred under its own tyre; the
+    # round corner profile is stretched to that width
+    tw = max(m_["tw"] for m_ in meas)
+    for m_ in meas:
+        w, cy = m_["w"], m_["cy"]
         L = max(4.0, min(length * tw, 0.9 * (H_ - cy)))
         sx = soft * tw + 1.0
         pad = int(3 * (sx + spread * tw)) + 2
-        xa, xb = max(0, X0 + c0 - pad), min(W_, X0 + c1 + 1 + pad)
+        xl, xr = m_["cen"] - (tw - 1) / 2.0, m_["cen"] + (tw - 1) / 2.0
+        xa, xb = max(0, int(np.floor(xl)) - pad), min(W_, int(np.ceil(xr)) + 1 + pad)
         ya, yb2 = max(0, cy - 1), min(H_, int(cy + L) + 2)
         if yb2 <= ya or xb <= xa:
             continue
         yy = np.arange(ya, yb2, dtype=np.float32)[:, None]
-        dep = yy - cy                                         # depth below the contact row
-        gc = np.full(xb - xa, np.inf, np.float32)             # where each column's reflection starts (mirrored corner)
-        j = np.arange(xa, xb) - X0
-        ok_ = (j >= c0) & (j <= c1)
-        gj = np.where(ok_, g[np.clip(j, 0, len(g) - 1)], np.inf)
-        gj = np.where(ok_ & ~inside[np.clip(j, 0, len(g) - 1)], lim, gj)   # a gap inside the width: fill it
+        dep = yy - cy                                         # depth below the (lifted) contact row
+        xs_ = np.arange(xa, xb, dtype=np.float32)
+        ok_ = (xs_ >= xl - 0.5) & (xs_ <= xr + 0.5)
+        src = np.interp(np.clip((xs_ - xl) / max(1.0, tw - 1), 0, 1), np.linspace(0, 1, len(m_["g"])), m_["g"])
+        gj = np.where(ok_, src, np.inf).astype(np.float32)    # where each column's reflection starts (mirrored corner)
         M = np.clip(dep - gj[None, :] + 1.0, 0, 1)             # anti-aliased top edge = the tyre's corners mirrored
         Ms = cv2.GaussianBlur(M, (0, 0), sigmaX=sx, sigmaY=0.5, borderType=cv2.BORDER_CONSTANT)
         Mw = cv2.GaussianBlur(M, (0, 0), sigmaX=sx + spread * tw, sigmaY=0.5, borderType=cv2.BORDER_CONSTANT)

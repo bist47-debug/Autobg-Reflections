@@ -833,8 +833,8 @@ def finish(opacity, length, fade, even, hidden, lift, shadow, origcar, straight,
     if use_t:
         # reflection ON TOP of the AutoBG shadow: under it, the shadow's thin edge right at the tyre showed
         # as a light line between tyre and reflection
-        # 11-16: the real car (tyre + rim) mirrored in it at half strength (detail + gloss x0.5), side shots only
-        res = WH.flip(res, STATE["car_sharp"], STATE["wheels"], t_str, t_len, fade, t_gblur, 1.0, 1.0, 0.5 * t_det, t_shift, t_con, 0.5 * t_gloss)
+        # 11-16: the real car (tyre + rim) mirrored in it at 40 % (detail + gloss x0.4), edges a little softer, side shots only
+        res = WH.flip(res, STATE["car_sharp"], STATE["wheels"], t_str, t_len, fade, t_gblur, 1.0, 1.0, 0.4 * t_det, t_shift, t_con, 0.4 * t_gloss, edge=0.012)
     elif STATE.get("frontrear"):
         # front / rear view: v2 put its tyre reflections beside the tyres -> those are removed (above) and the
         # real tyres are mirrored exactly under themselves, same look as the side views
