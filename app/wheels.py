@@ -448,7 +448,7 @@ def flip(base, car, wheels, strength=0.6, length=0.55, fade=1.0, blur=0.0, far=1
     return out
 
 
-def tyre_column(base, car, wheels, strength=0.25, length=1.1, soft=0.02, spread=0.05, up=5, equal=False, ellipse=False):
+def tyre_column(base, car, wheels, strength=0.25, length=1.1, soft=0.02, spread=0.05, up=8, equal=False, ellipse=False):
     """front / back views (11-16 reference look): each tyre's reflection is a plain, matte, slightly darker
     column of floor EXACTLY the tyre's width - no tread / rim detail. Its top corners are the tyre's own round
     bottom corners mirrored (read from the cut-out in this photo), the sides are soft and get a little softer
@@ -526,7 +526,7 @@ def tyre_column(base, car, wheels, strength=0.25, length=1.1, soft=0.02, spread=
         t = np.clip(dep / L, 0, 1)
         M = Ms * (1 - t) + Mw * t                             # sides soften with depth
         prof = strength * np.clip(1 - dep / L, 0, 1)          # linear fade
-        prof = np.maximum(prof, 0.6 * np.clip(1 - (dep + 1) / 3.0, 0, 1))   # no light seam right under the tyre
+        prof = np.maximum(prof, 0.6 * np.clip(1 - (dep - int(up) + 1) / 3.0, 0, 1))   # no light seam right under the tyre (at the REAL contact)
         k = (prof * M * (1 - np.clip((a[ya:yb2, xa:xb] - 0.9) / 0.1, 0, 1)))[..., None]
         col = np.asarray(w.get("col", (22, 22, 26)), np.float32).reshape(1, 1, 3)
         out[ya:yb2, xa:xb] = out[ya:yb2, xa:xb] * (1 - k) + col * k
