@@ -37,7 +37,7 @@ cut-out + AutoBG shadow
       │        └─ align to the real car (ECC) ─► keep only the floor change (the reflection)
       │
       ├─ per-view finishing (section 3)
-      ├─ AutoBG shadow on top (original strength × 1.2, never dimmed)
+      ├─ AutoBG shadow on top (original strength × 1.25, never dimmed)
       └─ original car on top, full resolution  ─►  <car>_reflection.jpg
 ```
 
@@ -82,7 +82,7 @@ The first start downloads Qwen-Image-Edit-2511 (tens of GB), which takes several
 | Full page | same without `--team --password` | All sliders, for tuning. |
 | Batch | `python reflect_autobg.py --full --lora … --backdrop … --batch FOLDER` | Every `name.png` + `name_shadow.png` in a folder → `FOLDER_out/`. |
 
-Useful flags: `--shadow_dark 1.2` (AutoBG shadow strength multiplier; 1 = original),
+Useful flags: `--shadow_dark 1.25` (AutoBG shadow strength multiplier; 1 = original),
 `--bright 25` (how much lighter than the floor the reflection of white/silver cars may be).
 
 ### 2.5 Inputs
@@ -116,7 +116,7 @@ Defaults live in `BATCH` in `app/reflect_autobg.py` (team page and batch) and in
 ### 3.2 Side shots: no AI, mirrored tyres only
 
 - Real tyres (from the tyre model's outline) mirrored about their floor contact line.
-- Side shots (11-16 evening): same reflection as front / back (`WH.tyre_column`): the round tyre mirrored and stretched into a smooth oval (full tyre width, no square shoulders), soft sides, linear fade over 1.1 × tyre width, strength **0.184**. Cars placed with the tyre line at 88 % of the height; every reflection fades out inside the frame.
+- Side shots (11-16 evening): same reflection as front / back (`WH.tyre_column`): the round tyre mirrored and stretched into a smooth oval (full tyre width, no square shoulders), soft sides, linear fade over 1.1 × tyre width, strength **0.193**. Cars placed with the tyre line at 88 % of the height; every reflection fades out inside the frame.
 - Nothing between the tyres: only the tyres are reflected (the sill mirror was removed 2026-11-16).
 - Edges: anti-aliased outline with an ellipse fit for round tyres, so the outline is crisp.
 
@@ -143,8 +143,8 @@ Defaults live in `BATCH` in `app/reflect_autobg.py` (team page and batch) and in
 
 ### 3.5 Shadows (all views)
 
-- **AutoBG shadows are never dimmed** (decision 2026-11-13). They are drawn at **1.2 × the original strength**
-  (`--shadow_dark 1.2`), with a slight vertical softening of the hard edge at the tyre contact.
+- **AutoBG shadows are never dimmed** (decision 2026-11-13). They are drawn at **1.25 × the original strength**
+  (`--shadow_dark 1.25`), with a slight vertical softening of the hard edge at the tyre contact.
 - The shadow goes on top of the reflection. If a dark shadow hides the reflection, lengthen the
   fade; never weaken the shadow.
 

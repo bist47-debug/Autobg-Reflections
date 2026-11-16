@@ -267,7 +267,7 @@ ap.add_argument("--batch_out", default=None, help="output folder for --batch (de
 ap.add_argument("--team", action="store_true", help="simple page for the team: upload cars, get results (locked settings, no sliders)")
 ap.add_argument("--password", default=None, help="--team: protect the page, login user 'autobg' + this password")
 ap.add_argument("--bright", type=float, default=25.0, help="light cars: how much lighter than the floor their reflection may be (0 = old hard cap)")
-ap.add_argument("--shadow_dark", type=float, default=1.2, help="AutoBG shadow strength x this (1 = original)")
+ap.add_argument("--shadow_dark", type=float, default=1.25, help="AutoBG shadow strength x this (1 = original)")
 A = ap.parse_args()
 SH_DARK = A.shadow_dark
 BRIGHT_KEEP = A.bright
@@ -853,8 +853,8 @@ def finish(opacity, length, fade, even, hidden, lift, shadow, origcar, straight,
                 tc_[max(0, x0_):max(0, x1_)] = 1.0
             tc_ = cv2.GaussianBlur(tc_[None], (0, 0), 8)[0][None, :]
             sh_[..., 3] = np.clip(ab_ * tc_ + np.maximum(a0_, ab_) * (1 - tc_), 0, 255).astype(np.uint8)
-            # AutoBG shadow: never dimmed; made darker by --shadow_dark (default 1.2 = 20 % stronger), all views
-            sh_[..., 3] = np.clip(sh_[..., 3].astype(np.float32) * float(globals().get("SH_DARK", 1.2)), 0, 255).astype(np.uint8)
+            # AutoBG shadow: never dimmed; made darker by --shadow_dark (default 1.25 = 25 % stronger, 11-16), all views
+            sh_[..., 3] = np.clip(sh_[..., 3].astype(np.float32) * float(globals().get("SH_DARK", 1.25)), 0, 255).astype(np.uint8)
         under = G.over(res, sh_)                        # shadow on top of the reflection (as before)
         res = under
         if refl_front > 0:
@@ -910,7 +910,7 @@ def finish(opacity, length, fade, even, hidden, lift, shadow, origcar, straight,
             wl_.append(w_)
         # 11-16: replaced by the reference look - plain matte column exactly the tyre's width, round top corners,
         # soft sides, long linear fade (the mirrored-tyre version above is no longer drawn)
-        res = WH.tyre_column(res, STATE["car_sharp"], STATE["wheels"])
+        res = WH.tyre_column(res, STATE["car_sharp"], STATE["wheels"], strength=0.2625)   # 11-16: opacity +5 % (0.25 -> 0.2625)
     else:
         sl_ = STATE.get("slivers") or []
         full_ = [w_ for w_ in STATE.get("wheels", []) if not any(w_ is x_ for x_ in sl_)]
@@ -939,7 +939,7 @@ def finish(opacity, length, fade, even, hidden, lift, shadow, origcar, straight,
                                      lift=lift - 2.0, vstretch=2.5, soft_sides=0.12))
             if sl2_:
                 # darken-only: never a lighter patch inside the AutoBG shadow beside it; soft sides: no straight edges
-                res = WH.flip(res, STATE["car_sharp"], sl2_, 0.25, 0.45, fade, t_gblur, 1.0, 1.0, t_det, t_shift, 0.3 * t_con, t_gloss, darken=True)
+                res = WH.flip(res, STATE["car_sharp"], sl2_, 0.2625, 0.45, fade, t_gblur, 1.0, 1.0, t_det, t_shift, 0.3 * t_con, t_gloss, darken=True)
 
     # the cut-out's own crisp edge in ALL views: the tightened, softened edge let the floor show through at the
     # bottom of the tyres -> a light line between tyre and reflection
@@ -961,9 +961,9 @@ def save(*s):
 
 # settings chosen on 2026-11-09 (Polestar CRB05Z test) - used by --batch
 BATCH = dict(fast=False, light_w=1.15, steps=20, seed=42, bottom=0.88, width=0.55, height=0.55, do_recut=True,
-             opacity=0.4, length=0.2, fade=1.0, even=0.6, hidden=0.4, lift=0, shadow=True, straight=1.0,
+             opacity=0.42, length=0.2, fade=1.0, even=0.6, hidden=0.4, lift=0, shadow=True, straight=1.0,
              detrend=0.0, edge_w=0.0, tone=0.1, shift_px=2, refl_front=0.0, gen_sh=False, sh_dark=0.8, sh_soft=1.0, sh_contact=0.9,
-             mode="Auto", t_str=0.184, t_len=0.231, t_det=0.5, t_shift=4, t_con=1.0, t_gloss=0.65, t_gblur=0.0, refl_col=1.0, fstart=0.0, tstyle=True, tlen=0.45)
+             mode="Auto", t_str=0.193, t_len=0.231, t_det=0.5, t_shift=4, t_con=1.0, t_gloss=0.65, t_gblur=0.0, refl_col=1.0, fstart=0.0, tstyle=True, tlen=0.45)
 
 if A.batch:
     import glob
