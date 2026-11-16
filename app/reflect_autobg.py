@@ -795,6 +795,26 @@ def finish(opacity, length, fade, even, hidden, lift, shadow, origcar, straight,
         up = np.zeros_like(up)
         edge_w = 0.0
     else:
+        if not STATE.get("frontrear"):
+            # 3-4 views: the reflection stopped in a hard vertical edge straight down from the car's outermost point
+            # (front bumper corner). Fade it out smoothly over a band at the car's left / right ends that widens
+            # with depth below the car, so the edge melts away instead of sticking out
+            ca_ = STATE["car_hi"][..., 3] > 128
+            cols_ = np.where(ca_.any(0))[0]
+            if len(cols_) > 10:
+                x0c, x1c = float(cols_.min()), float(cols_.max())
+                botc = np.full(W2, -1.0, np.float32)
+                botc[cols_] = H2 - 1 - np.argmax(ca_[::-1, cols_], 0)
+                botc = np.interp(np.arange(W2), cols_, botc[cols_]).astype(np.float32)   # car's bottom per column
+                yy_ = np.arange(H2, dtype=np.float32)[:, None]
+                xx_ = np.arange(W2, dtype=np.float32)[None, :]
+                dep_ = np.maximum(yy_ - botc[None, :], 0)
+                b_ = 0.03 * (x1c - x0c) + 0.35 * dep_
+                wl_ = np.clip((xx_ - (x0c - 0.5 * b_)) / np.maximum(b_, 1), 0, 1)
+                wr_ = np.clip(((x1c + 0.5 * b_) - xx_) / np.maximum(b_, 1), 0, 1)
+                wx_ = np.minimum(wl_, wr_)
+                wx_ = wx_ * wx_ * (3 - 2 * wx_)                 # smoothstep
+                up = up * wx_[..., None]
         res = bg_hi + up
     if shadow and gen_sh:
         STATE["sh_use"] = gen_shadow(STATE["car_hi"], sh_dark, sh_soft, sh_contact)
