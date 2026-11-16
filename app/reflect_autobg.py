@@ -918,6 +918,14 @@ def finish(opacity, length, fade, even, hidden, lift, shadow, origcar, straight,
             # 3-4 views, visible tyres: v2 draws the reflection; add only the thin dark contact line where the
             # tyre meets the floor, so tyre and v2's reflection join without a light seam
             res = WH.flip(res, STATE["car_sharp"], full_, 0.001, t_len, fade, 0.0, 1.0, 1.0, 0.0, t_shift, t_con, 0.0)
+            # 11-16: v2 often draws the far (rear) tyre's reflection weakly -> one tyre clearly reflected, the other
+            # hardly. Every visible tyre now gets AT LEAST the side-shot tyre reflection (smooth oval, same length /
+            # tone for all): only the darkening v2 is missing there is added, so a tyre v2 already reflects well is
+            # not made darker
+            col_ = WH.tyre_column(bg_hi, STATE["car_sharp"], full_, strength=t_str, ellipse=True, length=0.99, up=5)
+            need_ = np.maximum(bg_hi - col_, 0)                 # darkening the tyre reflection wants
+            have_ = np.maximum(-up, 0)                          # darkening v2's reflection already gives
+            res = res - np.maximum(need_ - have_, 0)
         if sl_:
             # far tyre that is only a sliver: v2 draws no usable reflection there (an alloy or nothing), and
             # mirroring the sliver gives a flat slab. Treat it as an invisible tyre: a soft dark oval under it
