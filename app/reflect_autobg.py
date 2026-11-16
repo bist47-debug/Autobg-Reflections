@@ -806,7 +806,16 @@ def finish(opacity, length, fade, even, hidden, lift, shadow, origcar, straight,
             sh_ = sh_.copy()
             ys_ = np.where(STATE["car_hi"][..., 3] > 128)[0]
             sgy = max(2.0, 0.012 * (ys_.max() - ys_.min()))
-            sh_[..., 3] = np.clip(cv2.GaussianBlur(sh_[..., 3].astype(np.float32), (0, 0), sigmaX=1.0, sigmaY=sgy), 0, 255).astype(np.uint8)
+            a0_ = sh_[..., 3].astype(np.float32)
+            ab_ = cv2.GaussianBlur(a0_, (0, 0), sigmaX=1.0, sigmaY=sgy)
+            # the softening only under the tyres: elsewhere (along the sills, bumpers) it thinned the shadow right at
+            # the car's edge -> a light line of floor between car and shadow. There the shadow is never made lighter.
+            tc_ = np.zeros(a0_.shape[1], np.float32)
+            for w_ in STATE.get("wheels") or []:
+                x0_, _, x1_, _ = [int(v) for v in w_["box"]]
+                tc_[max(0, x0_):max(0, x1_)] = 1.0
+            tc_ = cv2.GaussianBlur(tc_[None], (0, 0), 8)[0][None, :]
+            sh_[..., 3] = np.clip(ab_ * tc_ + np.maximum(a0_, ab_) * (1 - tc_), 0, 255).astype(np.uint8)
             # AutoBG shadow: never dimmed; made darker by --shadow_dark (default 1.2 = 20 % stronger), all views
             sh_[..., 3] = np.clip(sh_[..., 3].astype(np.float32) * float(globals().get("SH_DARK", 1.2)), 0, 255).astype(np.uint8)
         under = G.over(res, sh_)                        # shadow on top of the reflection (as before)
