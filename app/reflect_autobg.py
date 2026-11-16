@@ -833,7 +833,8 @@ def finish(opacity, length, fade, even, hidden, lift, shadow, origcar, straight,
     if use_t:
         # reflection ON TOP of the AutoBG shadow: under it, the shadow's thin edge right at the tyre showed
         # as a light line between tyre and reflection
-        res = WH.flip(res, STATE["car_sharp"], STATE["wheels"], t_str, t_len, fade, t_gblur, 1.0, 1.0, t_det, t_shift, t_con, t_gloss)
+        # 11-16: the real car (tyre + rim) mirrored in it at half strength (detail + gloss x0.5), side shots only
+        res = WH.flip(res, STATE["car_sharp"], STATE["wheels"], t_str, t_len, fade, t_gblur, 1.0, 1.0, 0.5 * t_det, t_shift, t_con, 0.5 * t_gloss)
     elif STATE.get("frontrear"):
         # front / rear view: v2 put its tyre reflections beside the tyres -> those are removed (above) and the
         # real tyres are mirrored exactly under themselves, same look as the side views
@@ -919,10 +920,10 @@ def save(*s):
 
 
 # settings chosen on 2026-11-09 (Polestar CRB05Z test) - used by --batch
-BATCH = dict(fast=False, light_w=1.15, steps=20, seed=42, bottom=0.95, width=0.55, height=0.55, do_recut=True,
+BATCH = dict(fast=False, light_w=1.15, steps=20, seed=42, bottom=0.88, width=0.55, height=0.55, do_recut=True,
              opacity=0.4, length=0.2, fade=1.0, even=0.6, hidden=0.4, lift=0, shadow=True, straight=1.0,
              detrend=0.0, edge_w=0.0, tone=0.1, shift_px=2, refl_front=0.0, gen_sh=False, sh_dark=0.8, sh_soft=1.0, sh_contact=0.9,
-             mode="Auto", t_str=0.23, t_len=0.21, t_det=0.5, t_shift=4, t_con=1.0, t_gloss=0.65, t_gblur=0.0, refl_col=1.0, fstart=0.0, tstyle=True, tlen=0.45)
+             mode="Auto", t_str=0.184, t_len=0.231, t_det=0.5, t_shift=4, t_con=1.0, t_gloss=0.65, t_gblur=0.0, refl_col=1.0, fstart=0.0, tstyle=True, tlen=0.45)
 
 if A.batch:
     import glob

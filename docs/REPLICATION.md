@@ -116,7 +116,7 @@ Defaults live in `BATCH` in `app/reflect_autobg.py` (team page and batch) and in
 ### 3.2 Side shots: no AI, mirrored tyres only
 
 - Real tyres (from the tyre model's outline) mirrored about their floor contact line.
-- Strength **0.23**, fade **0.21 × wheel height**, tyre detail 0.5, gloss 0.65, contact darkness 1, moved 4 px.
+- Strength **0.184**, fade **0.231 × wheel height**, real tyre detail 0.25, gloss 0.325 (half of the 0.5 / 0.65 sliders), contact darkness 1, moved 4 px. Cars placed with the tyre line at 88 % of the height; every reflection fades out inside the frame.
 - Nothing between the tyres: only the tyres are reflected (the sill mirror was removed 2026-11-16).
 - Edges: anti-aliased outline with an ellipse fit for round tyres, so the outline is crisp.
 
