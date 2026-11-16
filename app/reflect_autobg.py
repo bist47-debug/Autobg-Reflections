@@ -882,7 +882,7 @@ def finish(opacity, length, fade, even, hidden, lift, shadow, origcar, straight,
         # bottom mirrored at the top, soft sides, long linear fade; at the side-shot strength (t_str)
         # (before: the real tyre + rim mirrored at 40 %, short fade:
         #  WH.flip(res, car_sharp, wheels, t_str, t_len, fade, t_gblur, 1, 1, 0.4 * t_det, t_shift, t_con, 0.4 * t_gloss, edge=0.012))
-        res = WH.tyre_column(res, STATE["car_sharp"], STATE["wheels"], strength=t_str, ellipse=True, length=0.99, up=5)   # 11-16: fade 10 % shorter (1.1 -> 0.99)   # smooth stretched oval, no square shoulders
+        res = WH.tyre_column(res, STATE["car_sharp"], STATE["wheels"], strength=t_str, ellipse=True, length=0.85, up=5)   # 11-16: fade 10 % shorter (1.1 -> 0.99)   # smooth stretched oval, no square shoulders
     elif STATE.get("frontrear"):
         # front / rear view: v2 put its tyre reflections beside the tyres -> those are removed (above) and the
         # real tyres are mirrored exactly under themselves, same look as the side views
@@ -971,7 +971,7 @@ def save(*s):
 
 # settings chosen on 2026-11-09 (Polestar CRB05Z test) - used by --batch
 BATCH = dict(fast=False, light_w=1.15, steps=20, seed=42, bottom=0.88, width=0.55, height=0.55, do_recut=True,
-             opacity=0.42, length=0.2, fade=1.0, even=0.6, hidden=0.4, lift=0, shadow=True, straight=1.0,
+             opacity=0.42, length=0.2, fade=1.0, even=0.6, hidden=0.0, lift=0, shadow=True, straight=1.0,
              detrend=0.0, edge_w=0.0, tone=0.1, shift_px=2, refl_front=0.0, gen_sh=False, sh_dark=0.8, sh_soft=1.0, sh_contact=0.9,
              mode="Auto", t_str=0.193, t_len=0.231, t_det=0.5, t_shift=4, t_con=1.0, t_gloss=0.65, t_gblur=0.0, refl_col=1.0, fstart=0.0, tstyle=True, tlen=0.45)
 

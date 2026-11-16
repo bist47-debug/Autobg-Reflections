@@ -524,6 +524,12 @@ def tyre_column(base, car, wheels, strength=0.25, length=1.1, soft=0.02, spread=
             v = (dep - ry) / ry
             e = np.sqrt(u ** 2 + v ** 2)
             M = np.clip((1.0 - e) * min(rx, ry) + 0.5, 0, 1)    # anti-aliased oval edge
+        else:
+            # front / back (11-16 evening): the column narrows as it goes down, a gently curved U instead of straight
+            # sides: half width x sqrt(1 - (depth / (1.4 x fade))^2) -> ~70 % of the tyre width where the fade ends
+            hw0 = tw / 2.0
+            hwd = hw0 * np.sqrt(np.clip(1 - (np.maximum(dep, 0) / (1.4 * L)) ** 2, 0, 1))
+            M = M * np.clip(hwd - np.abs(xs_[None, :] - cen_) + 0.5, 0, 1)
         Ms = cv2.GaussianBlur(M, (0, 0), sigmaX=sx, sigmaY=0.5, borderType=cv2.BORDER_CONSTANT)
         Mw = cv2.GaussianBlur(M, (0, 0), sigmaX=sx + spread * tw, sigmaY=0.5, borderType=cv2.BORDER_CONSTANT)
         t = np.clip(dep / L, 0, 1)
