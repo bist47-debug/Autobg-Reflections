@@ -814,15 +814,11 @@ def finish(opacity, length, fade, even, hidden, lift, shadow, origcar, straight,
                 yy_ = np.arange(H2, dtype=np.float32)[:, None]
                 xx_ = np.arange(W2, dtype=np.float32)[None, :]
                 dep_ = np.maximum(yy_ - botc[None, :], 0)
-                b_ = 0.06 * (x1c - x0c) + 0.8 * dep_
-                wl_ = np.clip((xx_ - (x0c - 0.25 * b_)) / np.maximum(b_, 1), 0, 1)
-                wr_ = np.clip(((x1c + 0.25 * b_) - xx_) / np.maximum(b_, 1), 0, 1)
-                wx_ = np.minimum(wl_, wr_)
-                wx_ = wx_ * wx_ * (3 - 2 * wx_)                 # smoothstep
-                # vertical lines INSIDE the reflection (mirrored vertical edges) melt too: blurred sideways, more
-                # the further below the car (like a real floor reflection getting softer with distance)
-                smax_ = max(2.0, 0.03 * W2)
-                sigs_ = [0.0] + [smax_ / 2 ** i for i in range(4, -1, -1)]
+                # (11-16: fading the reflection out at the ends, or blurring it all over, hid the reflection - now only
+                #  the outer edge is softened, the reflection keeps its full strength and detail)
+                # soft edge: sideways blur, only in a band around the car's left / right end, stronger with depth
+                smax_ = max(2.0, 0.012 * W2)
+                sigs_ = [0.0] + [smax_ / 2 ** i for i in range(3, -1, -1)]
                 lv_ = [up] + [cv2.GaussianBlur(up, (0, 0), sigmaX=s_, sigmaY=0.01) for s_ in sigs_[1:]]
                 sd_ = np.clip(0.3 * dep_, 0, smax_)
                 ub_ = np.zeros_like(up)
@@ -831,7 +827,9 @@ def finish(opacity, length, fade, even, hidden, lift, shadow, origcar, straight,
                     t_ = np.clip((sd_ - a_) / (b2_ - a_), 0, 1)[..., None]
                     m_ = ((sd_ >= a_) if i_ == 0 else (sd_ > a_)) & (sd_ <= b2_)
                     ub_ = np.where(m_[..., None], lv_[i_] * (1 - t_) + lv_[i_ + 1] * t_, ub_)
-                up = ub_ * wx_[..., None]
+                band_ = np.maximum(0.04 * (x1c - x0c) + 0.3 * dep_, 1.0)
+                em_ = np.maximum(np.exp(-((xx_ - x0c) / band_) ** 2), np.exp(-((xx_ - x1c) / band_) ** 2))[..., None]
+                up = up * (1 - em_) + ub_ * em_
         res = bg_hi + up
     if shadow and gen_sh:
         STATE["sh_use"] = gen_shadow(STATE["car_hi"], sh_dark, sh_soft, sh_contact)
