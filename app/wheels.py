@@ -448,7 +448,7 @@ def flip(base, car, wheels, strength=0.6, length=0.55, fade=1.0, blur=0.0, far=1
     return out
 
 
-def tyre_column(base, car, wheels, strength=0.25, length=1.1, soft=0.02, spread=0.05, up=5):
+def tyre_column(base, car, wheels, strength=0.25, length=1.1, soft=0.02, spread=0.05, up=5, equal=False):
     """front / back views (11-16 reference look): each tyre's reflection is a plain, matte, slightly darker
     column of floor EXACTLY the tyre's width - no tread / rim detail. Its top corners are the tyre's own round
     bottom corners mirrored (read from the cut-out in this photo), the sides are soft and get a little softer
@@ -486,9 +486,11 @@ def tyre_column(base, car, wheels, strength=0.25, length=1.1, soft=0.02, spread=
         return out
     # 11-16: every tyre's reflection gets the SAME width (the widest tyre's), centred under its own tyre; the
     # round corner profile is stretched to that width
-    tw = max(m_["tw"] for m_ in meas)
+    # (equal=True: every tyre gets the widest tyre's width - tried 11-16, back to each tyre's own width)
+    tw_eq = max(m_["tw"] for m_ in meas)
     for m_ in meas:
         w, cy = m_["w"], m_["cy"]
+        tw = tw_eq if equal else m_["tw"]
         L = max(4.0, min(length * tw, 0.9 * (H_ - cy)))
         sx = soft * tw + 1.0
         pad = int(3 * (sx + spread * tw)) + 2
