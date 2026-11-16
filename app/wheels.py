@@ -448,7 +448,7 @@ def flip(base, car, wheels, strength=0.6, length=0.55, fade=1.0, blur=0.0, far=1
     return out
 
 
-def tyre_column(base, car, wheels, strength=0.25, length=1.1, soft=0.02, spread=0.05, up=5, equal=False):
+def tyre_column(base, car, wheels, strength=0.25, length=1.1, soft=0.02, spread=0.05, up=5, equal=False, ellipse=False):
     """front / back views (11-16 reference look): each tyre's reflection is a plain, matte, slightly darker
     column of floor EXACTLY the tyre's width - no tread / rim detail. Its top corners are the tyre's own round
     bottom corners mirrored (read from the cut-out in this photo), the sides are soft and get a little softer
@@ -481,7 +481,9 @@ def tyre_column(base, car, wheels, strength=0.25, length=1.1, soft=0.02, spread=
             continue
         c0, c1 = cols.min(), cols.max()
         prof_g = np.where(inside[c0:c1 + 1], g[c0:c1 + 1], lim)      # gaps inside the width filled
-        meas.append(dict(w=w, cy=cyr - int(up), cen=X0 + (c0 + c1) / 2.0, tw=float(c1 - c0 + 1), g=prof_g))
+        mc_ = np.where(np.asarray(w["m"]).any(0))[0]               # the tyre's FULL width (its mask), for ellipse mode
+        fw, fcen = (float(mc_.max() - mc_.min() + 1), w["box"][0] + (mc_.min() + mc_.max()) / 2.0) if len(mc_) else (float(c1 - c0 + 1), X0 + (c0 + c1) / 2.0)
+        meas.append(dict(w=w, cy=cyr - int(up), cen=X0 + (c0 + c1) / 2.0, tw=float(c1 - c0 + 1), g=prof_g, fw=fw, fcen=fcen, th=th))
     if not meas:
         return out
     # 11-16: every tyre's reflection gets the SAME width (the widest tyre's), centred under its own tyre; the
@@ -491,10 +493,13 @@ def tyre_column(base, car, wheels, strength=0.25, length=1.1, soft=0.02, spread=
     for m_ in meas:
         w, cy = m_["w"], m_["cy"]
         tw = tw_eq if equal else m_["tw"]
+        if ellipse:
+            tw = m_["fw"]
         L = max(4.0, min(length * tw, 0.9 * (H_ - cy)))
         sx = soft * tw + 1.0
         pad = int(3 * (sx + spread * tw)) + 2
-        xl, xr = m_["cen"] - (tw - 1) / 2.0, m_["cen"] + (tw - 1) / 2.0
+        cen_ = m_["fcen"] if ellipse else m_["cen"]
+        xl, xr = cen_ - (tw - 1) / 2.0, cen_ + (tw - 1) / 2.0
         xa, xb = max(0, int(np.floor(xl)) - pad), min(W_, int(np.ceil(xr)) + 1 + pad)
         ya, yb2 = max(0, cy - 1), min(H_, int(cy + L) + 2)
         if yb2 <= ya or xb <= xa:
@@ -506,6 +511,16 @@ def tyre_column(base, car, wheels, strength=0.25, length=1.1, soft=0.02, spread=
         src = np.interp(np.clip((xs_ - xl) / max(1.0, tw - 1), 0, 1), np.linspace(0, 1, len(m_["g"])), m_["g"])
         gj = np.where(ok_, src, np.inf).astype(np.float32)    # where each column's reflection starts (mirrored corner)
         M = np.clip(dep - gj[None, :] + 1.0, 0, 1)             # anti-aliased top edge = the tyre's corners mirrored
+        if ellipse:
+            # side shots: the round tyre mirrored and STRETCHED down into a long smooth oval (a straight column under a
+            # round tyre gave square shoulders - edges sticking out). The oval is longer than the fade, so it fades out
+            # before its own bottom; its top is the tyre's round bottom mirrored (stretched)
+            rx = tw / 2.0
+            ry = max(m_["th"] / 2.0, 0.6 * L)
+            u = (xs_[None, :] - cen_) / rx
+            v = (dep - ry) / ry
+            e = np.sqrt(u ** 2 + v ** 2)
+            M = np.clip((1.0 - e) * min(rx, ry) + 0.5, 0, 1)    # anti-aliased oval edge
         Ms = cv2.GaussianBlur(M, (0, 0), sigmaX=sx, sigmaY=0.5, borderType=cv2.BORDER_CONSTANT)
         Mw = cv2.GaussianBlur(M, (0, 0), sigmaX=sx + spread * tw, sigmaY=0.5, borderType=cv2.BORDER_CONSTANT)
         t = np.clip(dep / L, 0, 1)

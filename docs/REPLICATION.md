@@ -116,7 +116,7 @@ Defaults live in `BATCH` in `app/reflect_autobg.py` (team page and batch) and in
 ### 3.2 Side shots: no AI, mirrored tyres only
 
 - Real tyres (from the tyre model's outline) mirrored about their floor contact line.
-- Side shots (11-16 evening): same reflection as front / back (`WH.tyre_column`): plain matte column the tyre's own width, round bottom mirrored at the top, soft sides, linear fade over 1.1 × tyre width, strength **0.184**. Cars placed with the tyre line at 88 % of the height; every reflection fades out inside the frame.
+- Side shots (11-16 evening): same reflection as front / back (`WH.tyre_column`): the round tyre mirrored and stretched into a smooth oval (full tyre width, no square shoulders), soft sides, linear fade over 1.1 × tyre width, strength **0.184**. Cars placed with the tyre line at 88 % of the height; every reflection fades out inside the frame.
 - Nothing between the tyres: only the tyres are reflected (the sill mirror was removed 2026-11-16).
 - Edges: anti-aliased outline with an ellipse fit for round tyres, so the outline is crisp.
 
