@@ -809,9 +809,9 @@ def finish(opacity, length, fade, even, hidden, lift, shadow, origcar, straight,
                 yy_ = np.arange(H2, dtype=np.float32)[:, None]
                 xx_ = np.arange(W2, dtype=np.float32)[None, :]
                 dep_ = np.maximum(yy_ - botc[None, :], 0)
-                b_ = 0.03 * (x1c - x0c) + 0.35 * dep_
-                wl_ = np.clip((xx_ - (x0c - 0.5 * b_)) / np.maximum(b_, 1), 0, 1)
-                wr_ = np.clip(((x1c + 0.5 * b_) - xx_) / np.maximum(b_, 1), 0, 1)
+                b_ = 0.06 * (x1c - x0c) + 0.8 * dep_
+                wl_ = np.clip((xx_ - (x0c - 0.25 * b_)) / np.maximum(b_, 1), 0, 1)
+                wr_ = np.clip(((x1c + 0.25 * b_) - xx_) / np.maximum(b_, 1), 0, 1)
                 wx_ = np.minimum(wl_, wr_)
                 wx_ = wx_ * wx_ * (3 - 2 * wx_)                 # smoothstep
                 up = up * wx_[..., None]
