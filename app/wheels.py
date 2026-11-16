@@ -497,7 +497,7 @@ def tyre_column(base, car, wheels, strength=0.25, length=1.1, soft=0.02, spread=
             tw = m_["fw"]
         # side shots: both tyres get the SAME fade length and tone (the bigger / nearer tyre's own size made its
         # reflection longer and more visible than the other one)
-        twL = float(np.mean([q["fw"] for q in meas])) if ellipse else tw
+        twL = float(np.mean([q["fw"] if ellipse else q["tw"] for q in meas]))   # same fade length for every tyre
         L = max(4.0, min(length * twL, 0.9 * (H_ - cy)))
         sx = soft * tw + 1.0
         pad = int(3 * (sx + spread * tw)) + 2
@@ -511,7 +511,12 @@ def tyre_column(base, car, wheels, strength=0.25, length=1.1, soft=0.02, spread=
         dep = yy - cy                                         # depth below the (lifted) contact row
         xs_ = np.arange(xa, xb, dtype=np.float32)
         ok_ = (xs_ >= xl - 0.5) & (xs_ <= xr + 0.5)
-        src = np.interp(np.clip((xs_ - xl) / max(1.0, tw - 1), 0, 1), np.linspace(0, 1, len(m_["g"])), m_["g"])
+        # one SHARED corner shape for all tyres (each tyre's own, partly hidden by bumper / mudflap, made the
+        # reflections look different from each other): mean of all tyres' profiles, made symmetric
+        u101 = np.linspace(0, 1, 101)
+        gsh = np.mean([np.interp(u101, np.linspace(0, 1, len(q["g"])), q["g"]) for q in meas], 0)
+        gsh = 0.5 * (gsh + gsh[::-1])
+        src = np.interp(np.clip((xs_ - xl) / max(1.0, tw - 1), 0, 1), u101, gsh)
         gj = np.where(ok_, src, np.inf).astype(np.float32)    # where each column's reflection starts (mirrored corner)
         M = np.clip(dep - gj[None, :] + 1.0, 0, 1)             # anti-aliased top edge = the tyre's corners mirrored
         if ellipse:
@@ -538,7 +543,7 @@ def tyre_column(base, car, wheels, strength=0.25, length=1.1, soft=0.02, spread=
         prof = np.maximum(prof, 0.6 * np.clip(1 - (dep - int(up) + 1) / 3.0, 0, 1))   # no light seam right under the tyre (at the REAL contact)
         k = (prof * M * (1 - np.clip((a[ya:yb2, xa:xb] - 0.9) / 0.1, 0, 1)))[..., None]
         col = np.asarray(w.get("col", (22, 22, 26)), np.float32).reshape(1, 1, 3)
-        if ellipse:
+        if True:                                       # same tone for every tyre (all views)
             col = np.mean([np.asarray(q["w"].get("col", (22, 22, 26)), np.float32) for q in meas], 0).reshape(1, 1, 3)
         out[ya:yb2, xa:xb] = out[ya:yb2, xa:xb] * (1 - k) + col * k
     return out
