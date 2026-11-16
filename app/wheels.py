@@ -539,7 +539,7 @@ def tyre_column(base, car, wheels, strength=0.25, length=1.1, soft=0.02, spread=
             # each scaled to its own tyre), so it widens slightly from the contact patch like the real tyre does
             hpm = np.mean([q["hp"] for q in meas], 0)
             fw_, fc_ = m_["fw"], m_["fcen"]
-            dr_ = np.maximum(dep - int(up), 0)                  # depth below the REAL contact
+            dr_ = np.maximum(dep, 0)                            # depth below the LIFTED contact (reflection pushed up `up` px)
             hw_ = 0.5 * fw_ * np.interp(dr_ / (2.0 * float(m_["th"])), np.linspace(0, 1, 101), hpm)   # mirrored x2 stretched (perspective, as in the reference)
             M = np.clip(hw_ - np.abs(xs_[None, :] - fc_) + 0.5, 0, 1) * np.clip(dep + 1.0, 0, 1)
         if ellipse:
