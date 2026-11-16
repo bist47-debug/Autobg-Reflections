@@ -448,7 +448,7 @@ def flip(base, car, wheels, strength=0.6, length=0.55, fade=1.0, blur=0.0, far=1
     return out
 
 
-def tyre_column(base, car, wheels, strength=0.25, length=1.1, soft=0.02, spread=0.05):
+def tyre_column(base, car, wheels, strength=0.25, length=1.1, soft=0.02, spread=0.05, up=3):
     """front / back views (11-16 reference look): each tyre's reflection is a plain, matte, slightly darker
     column of floor EXACTLY the tyre's width - no tread / rim detail. Its top corners are the tyre's own round
     bottom corners mirrored (read from the cut-out in this photo), the sides are soft and get a little softer
@@ -470,8 +470,8 @@ def tyre_column(base, car, wheels, strength=0.25, length=1.1, soft=0.02, spread=
         if not has.any():
             continue
         bot = np.where(has, lo + sub.shape[0] - 1 - np.argmax(sub[::-1], 0), -1)   # lowest solid row per column
-        cy = int(bot.max())                                   # the tyre's floor contact
-        g = (cy - bot).astype(np.float32)
+        cy = int(bot.max()) - int(up)                         # the tyre's floor contact, reflection moved up `up` px (11-16: 3)
+        g = (cy + int(up) - bot).astype(np.float32)          # corner depth, measured from the REAL contact
         lim = max(3.0, 0.35 * th)                             # deeper than the tyre's round corner = not the tyre
         inside = has & (g <= lim)
         cols = np.where(inside)[0]
