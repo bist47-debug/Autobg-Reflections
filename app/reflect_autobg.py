@@ -828,7 +828,16 @@ def finish(opacity, length, fade, even, hidden, lift, shadow, origcar, straight,
                     m_ = ((sd_ >= a_) if i_ == 0 else (sd_ > a_)) & (sd_ <= b2_)
                     ub_ = np.where(m_[..., None], lv_[i_] * (1 - t_) + lv_[i_ + 1] * t_, ub_)
                 band_ = np.maximum(0.04 * (x1c - x0c) + 0.3 * dep_, 1.0)
-                em_ = np.maximum(np.exp(-((xx_ - x0c) / band_) ** 2), np.exp(-((xx_ - x1c) / band_) ** 2))[..., None]
+                em_ = np.maximum(np.exp(-((xx_ - x0c) / band_) ** 2), np.exp(-((xx_ - x1c) / band_) ** 2))
+                # never under a tyre: a tyre right at the car's end (rear tyre of a 3-4 shot) had its reflection
+                # smeared sideways -> much weaker than the other tyre
+                tcol_ = np.zeros(W2, np.float32)
+                for w_ in STATE.get("wheels") or []:
+                    tx0_, _, tx1_, _ = [int(v) for v in w_["box"]]
+                    pd_ = int(0.15 * (tx1_ - tx0_))
+                    tcol_[max(0, tx0_ - pd_):max(0, tx1_ + pd_)] = 1.0
+                tcol_ = cv2.GaussianBlur(tcol_[None], (0, 0), max(2.0, 0.01 * W2))[0]
+                em_ = (em_ * (1 - tcol_[None, :]))[..., None]
                 up = up * (1 - em_) + ub_ * em_
         res = bg_hi + up
     if shadow and gen_sh:
