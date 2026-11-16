@@ -448,6 +448,64 @@ def flip(base, car, wheels, strength=0.6, length=0.55, fade=1.0, blur=0.0, far=1
     return out
 
 
+def tyre_column(base, car, wheels, strength=0.25, length=1.1, soft=0.02, spread=0.05):
+    """front / back views (11-16 reference look): each tyre's reflection is a plain, matte, slightly darker
+    column of floor EXACTLY the tyre's width - no tread / rim detail. Its top corners are the tyre's own round
+    bottom corners mirrored (read from the cut-out in this photo), the sides are soft and get a little softer
+    with depth, and it fades linearly over `length` x tyre width - always ending inside the picture."""
+    H_, W_ = base.shape[:2]
+    out = base.astype(np.float32).copy()
+    a = car[..., 3].astype(np.float32) / 255
+    for w in wheels:
+        X0, Y0, X1, Y1 = [int(v) for v in w["box"]]
+        X0, X1 = max(0, X0), min(W_, X1)
+        yb = int(w["yb"])
+        th = max(2, yb - int(w["top"]) + 1)
+        tol = max(3, int(0.1 * th))
+        lo, hi = max(0, Y0), min(H_, yb + tol + 1)
+        if X1 - X0 < 3 or hi <= lo:
+            continue
+        sub = a[lo:hi, X0:X1] > 0.5
+        has = sub.any(0)
+        if not has.any():
+            continue
+        bot = np.where(has, lo + sub.shape[0] - 1 - np.argmax(sub[::-1], 0), -1)   # lowest solid row per column
+        cy = int(bot.max())                                   # the tyre's floor contact
+        g = (cy - bot).astype(np.float32)
+        lim = max(3.0, 0.35 * th)                             # deeper than the tyre's round corner = not the tyre
+        inside = has & (g <= lim)
+        cols = np.where(inside)[0]
+        if len(cols) < 3:
+            continue
+        c0, c1 = cols.min(), cols.max()                       # the tyre's width at the floor
+        tw = float(c1 - c0 + 1)
+        L = max(4.0, min(length * tw, 0.9 * (H_ - cy)))
+        sx = soft * tw + 1.0
+        pad = int(3 * (sx + spread * tw)) + 2
+        xa, xb = max(0, X0 + c0 - pad), min(W_, X0 + c1 + 1 + pad)
+        ya, yb2 = max(0, cy - 1), min(H_, int(cy + L) + 2)
+        if yb2 <= ya or xb <= xa:
+            continue
+        yy = np.arange(ya, yb2, dtype=np.float32)[:, None]
+        dep = yy - cy                                         # depth below the contact row
+        gc = np.full(xb - xa, np.inf, np.float32)             # where each column's reflection starts (mirrored corner)
+        j = np.arange(xa, xb) - X0
+        ok_ = (j >= c0) & (j <= c1)
+        gj = np.where(ok_, g[np.clip(j, 0, len(g) - 1)], np.inf)
+        gj = np.where(ok_ & ~inside[np.clip(j, 0, len(g) - 1)], lim, gj)   # a gap inside the width: fill it
+        M = np.clip(dep - gj[None, :] + 1.0, 0, 1)             # anti-aliased top edge = the tyre's corners mirrored
+        Ms = cv2.GaussianBlur(M, (0, 0), sigmaX=sx, sigmaY=0.5, borderType=cv2.BORDER_CONSTANT)
+        Mw = cv2.GaussianBlur(M, (0, 0), sigmaX=sx + spread * tw, sigmaY=0.5, borderType=cv2.BORDER_CONSTANT)
+        t = np.clip(dep / L, 0, 1)
+        M = Ms * (1 - t) + Mw * t                             # sides soften with depth
+        prof = strength * np.clip(1 - dep / L, 0, 1)          # linear fade
+        prof = np.maximum(prof, 0.6 * np.clip(1 - (dep + 1) / 3.0, 0, 1))   # no light seam right under the tyre
+        k = (prof * M * (1 - np.clip((a[ya:yb2, xa:xb] - 0.9) / 0.1, 0, 1)))[..., None]
+        col = np.asarray(w.get("col", (22, 22, 26)), np.float32).reshape(1, 1, 3)
+        out[ya:yb2, xa:xb] = out[ya:yb2, xa:xb] * (1 - k) + col * k
+    return out
+
+
 def debug(img, wheels):
     """green = near wheel, yellow = far wheel (visible part), blue = full wheel incl. hidden part, red = contact."""
     d = img.copy()

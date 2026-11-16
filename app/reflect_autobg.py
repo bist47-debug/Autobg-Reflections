@@ -870,7 +870,9 @@ def finish(opacity, length, fade, even, hidden, lift, shadow, origcar, straight,
                 # tyre half hidden by the bumper: the mirrored tyre ran out before the fade ended -> a hard cut.
                 # Now the stretch grows until the mirrored tyre is longer than the fade, so it always fades out first
             wl_.append(w_)
-        res = WH.flip(res, STATE["car_sharp"], wl_, 0.35, 0.45, fade, t_gblur, 1.0, 1.0, t_det, t_shift, 0.3 * t_con, t_gloss)   # faster fade, then x1.5 stretch
+        # 11-16: replaced by the reference look - plain matte column exactly the tyre's width, round top corners,
+        # soft sides, long linear fade (the mirrored-tyre version above is no longer drawn)
+        res = WH.tyre_column(res, STATE["car_sharp"], STATE["wheels"])
     else:
         sl_ = STATE.get("slivers") or []
         full_ = [w_ for w_ in STATE.get("wheels", []) if not any(w_ is x_ for x_ in sl_)]
