@@ -1,0 +1,18 @@
+# reflection app (app/reflect_autobg.py) - Python 3.10+, CUDA GPU
+torch
+opencv-python-headless
+numpy
+pillow
+gradio
+peft
+transformers
+accelerate
+timm
+kornia
+einops
+gdown
+ultralytics
+diffusers @ git+https://github.com/huggingface/diffusers
+# only for the compressed PC mode (no --full):
+# gguf
+# bitsandbytes

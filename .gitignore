@@ -1,0 +1,11 @@
+# model weights and data live outside git (see docs/REPLICATION.md)
+*.safetensors
+*.pt
+*.gguf
+app/models/
+app/tyre_data/
+app/results/
+results/
+*_out/
+__pycache__/
+*.zip
