@@ -806,6 +806,11 @@ def finish(opacity, length, fade, even, hidden, lift, shadow, origcar, straight,
                 botc = np.full(W2, -1.0, np.float32)
                 botc[cols_] = H2 - 1 - np.argmax(ca_[::-1, cols_], 0)
                 botc = np.interp(np.arange(W2), cols_, botc[cols_]).astype(np.float32)   # car's bottom per column
+                # smooth it (lowest points win, then blurred): the jump between bumper and tyre bottoms made the
+                # band jump too -> a vertical line in the reflection
+                kd_ = max(3, int(0.1 * (x1c - x0c))) | 1
+                botc = cv2.dilate(botc[None], np.ones((1, kd_), np.uint8))[0]
+                botc = cv2.GaussianBlur(botc[None], (0, 0), max(1.0, 0.05 * (x1c - x0c)))[0]
                 yy_ = np.arange(H2, dtype=np.float32)[:, None]
                 xx_ = np.arange(W2, dtype=np.float32)[None, :]
                 dep_ = np.maximum(yy_ - botc[None, :], 0)
@@ -814,7 +819,19 @@ def finish(opacity, length, fade, even, hidden, lift, shadow, origcar, straight,
                 wr_ = np.clip(((x1c + 0.25 * b_) - xx_) / np.maximum(b_, 1), 0, 1)
                 wx_ = np.minimum(wl_, wr_)
                 wx_ = wx_ * wx_ * (3 - 2 * wx_)                 # smoothstep
-                up = up * wx_[..., None]
+                # vertical lines INSIDE the reflection (mirrored vertical edges) melt too: blurred sideways, more
+                # the further below the car (like a real floor reflection getting softer with distance)
+                smax_ = max(2.0, 0.03 * W2)
+                sigs_ = [0.0] + [smax_ / 2 ** i for i in range(4, -1, -1)]
+                lv_ = [up] + [cv2.GaussianBlur(up, (0, 0), sigmaX=s_, sigmaY=0.01) for s_ in sigs_[1:]]
+                sd_ = np.clip(0.3 * dep_, 0, smax_)
+                ub_ = np.zeros_like(up)
+                for i_ in range(len(sigs_) - 1):
+                    a_, b2_ = sigs_[i_], sigs_[i_ + 1]
+                    t_ = np.clip((sd_ - a_) / (b2_ - a_), 0, 1)[..., None]
+                    m_ = ((sd_ >= a_) if i_ == 0 else (sd_ > a_)) & (sd_ <= b2_)
+                    ub_ = np.where(m_[..., None], lv_[i_] * (1 - t_) + lv_[i_ + 1] * t_, ub_)
+                up = ub_ * wx_[..., None]
         res = bg_hi + up
     if shadow and gen_sh:
         STATE["sh_use"] = gen_shadow(STATE["car_hi"], sh_dark, sh_soft, sh_contact)
