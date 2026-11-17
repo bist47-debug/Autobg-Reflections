@@ -29,7 +29,7 @@ runs depends on the camera view, detected automatically.
 ```
 cut-out + AutoBG shadow
       │
-      ├─ BiRefNet re-cut ─► place on backdrop (bottom 95 %, max 55 % of width/height)
+      ├─ BiRefNet re-cut ─► place on backdrop (tyre line at 88 %, max 55 % of width/height)
       │
       ├─ tyre model (YOLO) ─► tyres + outlines ─► view: SIDE / FRONT-BACK / 3-4
       │
@@ -113,24 +113,29 @@ Defaults live in `BATCH` in `app/reflect_autobg.py` (team page and batch) and in
 | Front/back | Car width < 1.8 × height, two lowest tyres at the left and right ends on the same line; **or** the car outline is mirror-symmetric ≥ 0.88 (then a missing tyre is mirrored from the found one) |
 | 3/4 | Everything else |
 
-### 3.2 Side shots: tyre reflection only, no AI (v2 tried 2026-11-17 with `--side_ai`, not used)
+### 3.2 Side shots: tyre reflection only, no AI (state 2026-11-17)
 
-- `WH.tyre_column(..., ellipse=True, length=0.68, up=5)`: each tyre's round bottom mirrored and stretched
-  into a smooth oval (full tyre width, no square shoulders), soft sides, plain matte tone, no rim detail.
-- Linear fade over **0.443 × tyre width**, oval stretch **0.5**, strength **0.164**, pushed up 8 px; the real tyre + rim mirrored inside it at **4.25 %** (11-17), strength **0.193**. Both tyres get the same fade length and tone.
+- v2 on side shots was tried 2026-11-17 and not used; it is still available with `--side_ai`.
+- `WH.tyre_column(..., strength=1.075 * t_str (= 0.207), ellipse=True, length=0.421, up=8, stretch=0.5, rmin=0.3)`:
+  each tyre's round bottom mirrored as a slightly flattened oval (half-height 0.3 × tyre height, so its sides
+  curve like the tyre), full tyre width, soft sides, plain matte tone, pushed up 8 px.
+- Fade over **0.421 × tyre width**, soft curve (`(1 - t)^1.5`: faster at first, long gentle tail).
+  Both tyres get the same fade length and tone.
+- The real tyre + rim mirrored inside it at **5.9 %** (`WH.flip`, length 0.21), with **no** flat contact band.
 - Nothing between the tyres (the sill mirror was removed 2026-11-16).
 
-### 3.3 Front/back shots: AI reflection of the body + tyre columns (frozen 2026-11-16)
+### 3.3 Front/back shots: AI reflection of the body + tyre columns (state 2026-11-17)
 
 - The AI's own tyre reflections are removed (it places them wrongly on these views).
-- `WH.tyre_column(..., strength=0.236, mirror=False)`: each tyre's reflection is a plain matte column
-  **exactly that tyre's width at the floor**, top corners = the tyre's round corners mirrored (one shared,
+- `WH.tyre_column(..., strength=0.236, mirror=False, length=0.7125)`: each tyre's reflection is a plain matte
+  column **exactly that tyre's width at the floor**, top corners = the tyre's round corners mirrored (one shared,
   symmetric corner shape for all tyres), soft straight sides, **pushed up 8 px**.
-- Linear fade over **0.75 × tyre width** (11-17; same length and tone for every tyre), always ending inside the frame.
+- Fade over **0.7125 × tyre width**, same soft curve as side shots, same length and tone for every tyre,
+  always ending inside the frame.
 - The dark AutoBG shadow right under the tyres can hide the top of the reflection; if it looks too low,
   lengthen the fade, never weaken the shadow.
 
-### 3.4 3/4 shots: AI reflection (this morning's lock, frozen 2026-11-16)
+### 3.4 3/4 shots: AI reflection (11-16 morning lock + opacity +5 %)
 
 - AI reflection opacity **0.42** (0.4 + 5 %), fade **0.45 × wheel height** ("fade like side shots": straight
   down from each tyre's contact, the same for every tyre), even-out 0.6, reflection colour 1, moved 2 px.
@@ -143,7 +148,7 @@ Defaults live in `BATCH` in `app/reflect_autobg.py` (team page and batch) and in
 ### 3.5 Shadows (all views)
 
 - **AutoBG shadows are never dimmed** (decision 2026-11-13). They are drawn at **1.25 × the original strength**
-  (`--shadow_dark 1.25`), with a slight vertical softening of the hard edge at the tyre contact.
+  (`--shadow_dark 1.25`), not softened or stretched anywhere (2026-11-17).
 - The shadow goes on top of the reflection. If a dark shadow hides the reflection, lengthen the
   fade; never weaken the shadow.
 
