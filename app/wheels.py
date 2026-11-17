@@ -448,7 +448,7 @@ def flip(base, car, wheels, strength=0.6, length=0.55, fade=1.0, blur=0.0, far=1
     return out
 
 
-def tyre_column(base, car, wheels, strength=0.25, length=1.1, soft=0.02, spread=0.05, up=8, equal=False, ellipse=False, curve=False, mirror=True):
+def tyre_column(base, car, wheels, strength=0.25, length=1.1, soft=0.02, spread=0.05, up=8, equal=False, ellipse=False, curve=False, mirror=True, stretch=1.0):
     """front / back views (11-16 reference look): each tyre's reflection is a plain, matte, slightly darker
     column of floor EXACTLY the tyre's width - no tread / rim detail. Its top corners are the tyre's own round
     bottom corners mirrored (read from the cut-out in this photo), the sides are soft and get a little softer
@@ -547,7 +547,7 @@ def tyre_column(base, car, wheels, strength=0.25, length=1.1, soft=0.02, spread=
             # round tyre gave square shoulders - edges sticking out). The oval is longer than the fade, so it fades out
             # before its own bottom; its top is the tyre's round bottom mirrored (stretched)
             rx = tw / 2.0
-            ry = max(float(np.mean([q["th"] for q in meas])) / 2.0, 0.6 * L)
+            ry = stretch * max(float(np.mean([q["th"] for q in meas])) / 2.0, 0.6 * L)   # stretch < 1: flatter oval
             u = (xs_[None, :] - cen_) / rx
             v = (dep - ry) / ry
             e = np.sqrt(u ** 2 + v ** 2)
