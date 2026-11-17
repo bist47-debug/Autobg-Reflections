@@ -126,7 +126,7 @@ Defaults live in `BATCH` in `app/reflect_autobg.py` (team page and batch) and in
 - `WH.tyre_column(..., strength=0.2625, mirror=False)`: each tyre's reflection is a plain matte column
   **exactly that tyre's width at the floor**, top corners = the tyre's round corners mirrored (one shared,
   symmetric corner shape for all tyres), soft straight sides, **pushed up 8 px**.
-- Linear fade over **1.1 × tyre width** (same length and tone for every tyre), always ending inside the frame.
+- Linear fade over **0.935 × tyre width** (1.1 −15 %, 11-17; same length and tone for every tyre), always ending inside the frame.
 - The dark AutoBG shadow right under the tyres can hide the top of the reflection; if it looks too low,
   lengthen the fade, never weaken the shadow.
 

@@ -267,9 +267,11 @@ ap.add_argument("--batch_out", default=None, help="output folder for --batch (de
 ap.add_argument("--team", action="store_true", help="simple page for the team: upload cars, get results (locked settings, no sliders)")
 ap.add_argument("--password", default=None, help="--team: protect the page, login user 'autobg' + this password")
 ap.add_argument("--bright", type=float, default=25.0, help="light cars: how much lighter than the floor their reflection may be (0 = old hard cap)")
+ap.add_argument("--side_ai", action="store_true", help="side shots: use the v2 AI reflection (like 3/4 shots) instead of the tyre reflection - to compare")
 ap.add_argument("--shadow_dark", type=float, default=1.25, help="AutoBG shadow strength x this (1 = original)")
 A = ap.parse_args()
 SH_DARK = A.shadow_dark
+SIDE_AI = A.side_ai
 BRIGHT_KEEP = A.bright
 os.makedirs(A.out, exist_ok=True)
 
@@ -675,7 +677,7 @@ def generate(car_f, sh_f, bg_f, bottom, width, height, steps, seed, fast, light_
                 ws.append(WH.mirror_wheel(ws[0], (xx_.min() + xx_.max()) / 2.0))
             frontrear = True
     t = time.time()
-    if skip_side and side:
+    if skip_side and side and not globals().get("SIDE_AI"):
         # side view gets the tyre reflection - v2 isn't used, so don't spend ~35 s running it
         out = cond
     elif fast:
@@ -684,7 +686,7 @@ def generate(car_f, sh_f, bg_f, bottom, width, height, steps, seed, fast, light_
     else:
         pipe.set_adapters(["refl"], adapter_weights=[1.0])
         cfg = 4.0
-    if not (skip_side and side):
+    if not (skip_side and side and not globals().get("SIDE_AI")):
         out = pipe(image=[cond], prompt=PROMPT, negative_prompt=" ", true_cfg_scale=cfg,
                    num_inference_steps=int(steps), height=h, width=w,
                    generator=torch.Generator("cpu").manual_seed(int(seed))).images[0]
@@ -788,7 +790,7 @@ def finish(opacity, length, fade, even, hidden, lift, shadow, origcar, straight,
     if shift_px:                                       # move the reflection up (+) / down (-)
         M = np.float32([[1, 0, 0], [0, 1, -float(shift_px)]])
         up = cv2.warpAffine(up, M, (W2, H2), borderMode=cv2.BORDER_REPLICATE)
-    use_t = mode == "Tyre reflection" or (mode == "Auto" and STATE.get("side"))
+    use_t = mode == "Tyre reflection" or (mode == "Auto" and STATE.get("side") and not globals().get("SIDE_AI"))   # --side_ai: side shots go the 3/4 (v2) way
     if use_t:
         # side view: plain backdrop floor + ONLY the real tyres mirrored (your trained tyre model)
         res = bg_hi.copy()                              # tyre reflection goes on AFTER the shadow (below)
@@ -877,7 +879,7 @@ def finish(opacity, length, fade, even, hidden, lift, shadow, origcar, straight,
             wl_.append(w_)
         # 11-16: replaced by the reference look - plain matte column exactly the tyre's width, round top corners,
         # soft sides, long linear fade (the mirrored-tyre version above is no longer drawn)
-        res = WH.tyre_column(res, STATE["car_sharp"], STATE["wheels"], strength=0.2625, mirror=False)   # column: exactly each tyre's width at the floor   # 11-16: opacity +5 % (0.25 -> 0.2625)
+        res = WH.tyre_column(res, STATE["car_sharp"], STATE["wheels"], strength=0.2625, mirror=False, length=0.935)   # column: exactly each tyre's width at the floor   # 11-16: opacity +5 % (0.25 -> 0.2625)
     else:
         sl_ = STATE.get("slivers") or []
         full_ = [w_ for w_ in STATE.get("wheels", []) if not any(w_ is x_ for x_ in sl_)]
