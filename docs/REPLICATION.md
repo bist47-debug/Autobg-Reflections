@@ -117,7 +117,7 @@ Defaults live in `BATCH` in `app/reflect_autobg.py` (team page and batch) and in
 
 - `WH.tyre_column(..., ellipse=True, length=0.68, up=5)`: each tyre's round bottom mirrored and stretched
   into a smooth oval (full tyre width, no square shoulders), soft sides, plain matte tone, no rim detail.
-- Linear fade over **0.428 × tyre width**, strength 0.95 × 0.193, pushed up 8 px (11-17), strength **0.193**. Both tyres get the same fade length and tone.
+- Linear fade over **0.428 × tyre width**, opacity **0.05**, pushed up 8 px (11-17), strength **0.193**. Both tyres get the same fade length and tone.
 - Nothing between the tyres (the sill mirror was removed 2026-11-16).
 
 ### 3.3 Front/back shots: AI reflection of the body + tyre columns (frozen 2026-11-16)
