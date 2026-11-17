@@ -826,7 +826,7 @@ def finish(opacity, length, fade, even, hidden, lift, shadow, origcar, straight,
                 x0_, _, x1_, _ = [int(v) for v in w_["box"]]
                 tc_[max(0, x0_):max(0, x1_)] = 1.0
             tc_ = cv2.GaussianBlur(tc_[None], (0, 0), 8)[0][None, :]
-            sh_[..., 3] = np.clip(ab_ * tc_ + np.maximum(a0_, ab_) * (1 - tc_), 0, 255).astype(np.uint8)
+            sh_[..., 3] = np.clip(a0_, 0, 255).astype(np.uint8)   # 11-17: no vertical softening at all - the AutoBG shadow under the tyres is not stretched
             # AutoBG shadow: never dimmed; made darker by --shadow_dark (default 1.25 = 25 % stronger, 11-16), all views
             sh_[..., 3] = np.clip(sh_[..., 3].astype(np.float32) * float(globals().get("SH_DARK", 1.25)), 0, 255).astype(np.uint8)
         under = G.over(res, sh_)                        # shadow on top of the reflection (as before)
@@ -846,9 +846,9 @@ def finish(opacity, length, fade, even, hidden, lift, shadow, origcar, straight,
         # bottom mirrored at the top, soft sides, long linear fade; at the side-shot strength (t_str)
         # (before: the real tyre + rim mirrored at 40 %, short fade:
         #  WH.flip(res, car_sharp, wheels, t_str, t_len, fade, t_gblur, 1, 1, 0.4 * t_det, t_shift, t_con, 0.4 * t_gloss, edge=0.012))
-        res = WH.tyre_column(res, STATE["car_sharp"], STATE["wheels"], strength=0.85 * t_str, ellipse=True, length=0.421, up=8, stretch=0.5, rmin=0.3)   # 11-16: fade 10 % shorter (1.1 -> 0.99)   # smooth stretched oval, no square shoulders
+        res = WH.tyre_column(res, STATE["car_sharp"], STATE["wheels"], strength=0.935 * t_str, ellipse=True, length=0.421, up=8, stretch=0.5, rmin=0.3)   # 11-16: fade 10 % shorter (1.1 -> 0.99)   # smooth stretched oval, no square shoulders
         # 11-17: the REAL tyre + rim mirrored inside it at only 5 % (plus the contact shadow under each tyre)
-        res = WH.flip(res, STATE["car_sharp"], STATE["wheels"], 0.0425, 0.21, fade, t_gblur, 1.0, 1.0, t_det, t_shift, t_con, t_gloss)
+        res = WH.flip(res, STATE["car_sharp"], STATE["wheels"], 0.04675, 0.21, fade, t_gblur, 1.0, 1.0, t_det, t_shift, t_con, t_gloss)
     elif STATE.get("frontrear"):
         # front / rear view: v2 put its tyre reflections beside the tyres -> those are removed (above) and the
         # real tyres are mirrored exactly under themselves, same look as the side views
