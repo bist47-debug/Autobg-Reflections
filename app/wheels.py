@@ -448,7 +448,7 @@ def flip(base, car, wheels, strength=0.6, length=0.55, fade=1.0, blur=0.0, far=1
     return out
 
 
-def tyre_column(base, car, wheels, strength=0.25, length=1.1, soft=0.02, spread=0.05, up=8, equal=False, ellipse=False, curve=False, mirror=True, stretch=1.0):
+def tyre_column(base, car, wheels, strength=0.25, length=1.1, soft=0.02, spread=0.05, up=8, equal=False, ellipse=False, curve=False, mirror=True, stretch=1.0, rmin=0.5):
     """front / back views (11-16 reference look): each tyre's reflection is a plain, matte, slightly darker
     column of floor EXACTLY the tyre's width - no tread / rim detail. Its top corners are the tyre's own round
     bottom corners mirrored (read from the cut-out in this photo), the sides are soft and get a little softer
@@ -514,7 +514,7 @@ def tyre_column(base, car, wheels, strength=0.25, length=1.1, soft=0.02, spread=
         twL = float(np.mean([q["fw"] if ellipse else q["tw"] for q in meas]))   # same fade length for every tyre
         L = max(4.0, min(length * twL, 0.9 * (H_ - cy)))
         sx = soft * tw + 1.0
-        pad = int(3 * (sx + spread * tw)) + 2
+        pad = int(4 * (sx + spread * tw)) + 2
         cen_ = m_["fcen"] if (ellipse or (mirror and m_["hp"].max() > 0)) else m_["cen"]
         xl, xr = cen_ - (tw - 1) / 2.0, cen_ + (tw - 1) / 2.0
         xa, xb = max(0, int(np.floor(xl)) - pad), min(W_, int(np.ceil(xr)) + 1 + pad)
@@ -548,7 +548,10 @@ def tyre_column(base, car, wheels, strength=0.25, length=1.1, soft=0.02, spread=
             # before its own bottom; its top is the tyre's round bottom mirrored (stretched)
             rx = tw / 2.0
             # never flatter than the tyre itself mirrored (stretch 0.5 squashed it into the shadow -> gone, 11-17)
-            ry = max(float(np.mean([q["th"] for q in meas])) / 2.0, stretch * 0.6 * L)
+            # rmin: oval half-height (x tyre height). 0.5 = the tyre mirrored as is (its round sides only start
+            # curving in deep down, after the fade -> the visible part looked like a straight-sided triangle);
+            # 0.3 (11-17) = slightly flattened, so the sides visibly curve like the tyre within the fade
+            ry = max(rmin * float(np.mean([q["th"] for q in meas])), stretch * 0.6 * L)
             u = (xs_[None, :] - cen_) / rx
             v = (dep - ry) / ry
             e = np.sqrt(u ** 2 + v ** 2)
