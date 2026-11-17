@@ -267,11 +267,11 @@ ap.add_argument("--batch_out", default=None, help="output folder for --batch (de
 ap.add_argument("--team", action="store_true", help="simple page for the team: upload cars, get results (locked settings, no sliders)")
 ap.add_argument("--password", default=None, help="--team: protect the page, login user 'autobg' + this password")
 ap.add_argument("--bright", type=float, default=25.0, help="light cars: how much lighter than the floor their reflection may be (0 = old hard cap)")
-ap.add_argument("--side_tyres", action="store_true", help="side shots: tyre-only reflection (oval) instead of the v2 AI reflection (default since 11-17: v2)")
+ap.add_argument("--side_ai", action="store_true", help="side shots: v2 AI reflection (like 3/4) instead of the tyre reflection (tried 11-17, not used)")
 ap.add_argument("--shadow_dark", type=float, default=1.25, help="AutoBG shadow strength x this (1 = original)")
 A = ap.parse_args()
 SH_DARK = A.shadow_dark
-SIDE_AI = not A.side_tyres                         # 11-17: side shots use v2 (like 3/4) by default
+SIDE_AI = A.side_ai                                # 11-17: v2 on side shots tried, back to the tyre reflection
 BRIGHT_KEEP = A.bright
 os.makedirs(A.out, exist_ok=True)
 
