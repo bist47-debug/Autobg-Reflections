@@ -113,7 +113,7 @@ Defaults live in `BATCH` in `app/reflect_autobg.py` (team page and batch) and in
 | Front/back | Car width < 1.8 × height, two lowest tyres at the left and right ends on the same line; **or** the car outline is mirror-symmetric ≥ 0.88 (then a missing tyre is mirrored from the found one) |
 | 3/4 | Everything else |
 
-### 3.2 Side shots: no AI, tyre reflections only (frozen 2026-11-16)
+### 3.2 Side shots: v2 AI reflection by default since 2026-11-17 (same as 3/4); `--side_tyres` gives the tyre-only version below
 
 - `WH.tyre_column(..., ellipse=True, length=0.68, up=5)`: each tyre's round bottom mirrored and stretched
   into a smooth oval (full tyre width, no square shoulders), soft sides, plain matte tone, no rim detail.
@@ -123,7 +123,7 @@ Defaults live in `BATCH` in `app/reflect_autobg.py` (team page and batch) and in
 ### 3.3 Front/back shots: AI reflection of the body + tyre columns (frozen 2026-11-16)
 
 - The AI's own tyre reflections are removed (it places them wrongly on these views).
-- `WH.tyre_column(..., strength=0.2625, mirror=False)`: each tyre's reflection is a plain matte column
+- `WH.tyre_column(..., strength=0.236, mirror=False)`: each tyre's reflection is a plain matte column
   **exactly that tyre's width at the floor**, top corners = the tyre's round corners mirrored (one shared,
   symmetric corner shape for all tyres), soft straight sides, **pushed up 8 px**.
 - Linear fade over **0.75 × tyre width** (11-17; same length and tone for every tyre), always ending inside the frame.

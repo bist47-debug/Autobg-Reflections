@@ -267,11 +267,11 @@ ap.add_argument("--batch_out", default=None, help="output folder for --batch (de
 ap.add_argument("--team", action="store_true", help="simple page for the team: upload cars, get results (locked settings, no sliders)")
 ap.add_argument("--password", default=None, help="--team: protect the page, login user 'autobg' + this password")
 ap.add_argument("--bright", type=float, default=25.0, help="light cars: how much lighter than the floor their reflection may be (0 = old hard cap)")
-ap.add_argument("--side_ai", action="store_true", help="side shots: use the v2 AI reflection (like 3/4 shots) instead of the tyre reflection - to compare")
+ap.add_argument("--side_tyres", action="store_true", help="side shots: tyre-only reflection (oval) instead of the v2 AI reflection (default since 11-17: v2)")
 ap.add_argument("--shadow_dark", type=float, default=1.25, help="AutoBG shadow strength x this (1 = original)")
 A = ap.parse_args()
 SH_DARK = A.shadow_dark
-SIDE_AI = A.side_ai
+SIDE_AI = not A.side_tyres                         # 11-17: side shots use v2 (like 3/4) by default
 BRIGHT_KEEP = A.bright
 os.makedirs(A.out, exist_ok=True)
 
@@ -879,7 +879,7 @@ def finish(opacity, length, fade, even, hidden, lift, shadow, origcar, straight,
             wl_.append(w_)
         # 11-16: replaced by the reference look - plain matte column exactly the tyre's width, round top corners,
         # soft sides, long linear fade (the mirrored-tyre version above is no longer drawn)
-        res = WH.tyre_column(res, STATE["car_sharp"], STATE["wheels"], strength=0.2625, mirror=False, length=0.75)   # column: exactly each tyre's width at the floor   # 11-16: opacity +5 % (0.25 -> 0.2625)
+        res = WH.tyre_column(res, STATE["car_sharp"], STATE["wheels"], strength=0.236, mirror=False, length=0.75)   # column: exactly each tyre's width at the floor   # 11-16: opacity +5 % (0.25 -> 0.2625)
     else:
         sl_ = STATE.get("slivers") or []
         full_ = [w_ for w_ in STATE.get("wheels", []) if not any(w_ is x_ for x_ in sl_)]
