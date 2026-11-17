@@ -846,9 +846,9 @@ def finish(opacity, length, fade, even, hidden, lift, shadow, origcar, straight,
         # bottom mirrored at the top, soft sides, long linear fade; at the side-shot strength (t_str)
         # (before: the real tyre + rim mirrored at 40 %, short fade:
         #  WH.flip(res, car_sharp, wheels, t_str, t_len, fade, t_gblur, 1, 1, 0.4 * t_det, t_shift, t_con, 0.4 * t_gloss, edge=0.012))
-        res = WH.tyre_column(res, STATE["car_sharp"], STATE["wheels"], strength=0.85 * t_str, ellipse=True, length=0.443, up=8, stretch=0.5)   # 11-16: fade 10 % shorter (1.1 -> 0.99)   # smooth stretched oval, no square shoulders
+        res = WH.tyre_column(res, STATE["car_sharp"], STATE["wheels"], strength=0.85 * t_str, ellipse=True, length=0.421, up=8, stretch=0.5)   # 11-16: fade 10 % shorter (1.1 -> 0.99)   # smooth stretched oval, no square shoulders
         # 11-17: the REAL tyre + rim mirrored inside it at only 5 % (plus the contact shadow under each tyre)
-        res = WH.flip(res, STATE["car_sharp"], STATE["wheels"], 0.0425, 0.221, fade, t_gblur, 1.0, 1.0, t_det, t_shift, t_con, t_gloss)
+        res = WH.flip(res, STATE["car_sharp"], STATE["wheels"], 0.0425, 0.21, fade, t_gblur, 1.0, 1.0, t_det, t_shift, t_con, t_gloss)
     elif STATE.get("frontrear"):
         # front / rear view: v2 put its tyre reflections beside the tyres -> those are removed (above) and the
         # real tyres are mirrored exactly under themselves, same look as the side views
@@ -886,7 +886,7 @@ def finish(opacity, length, fade, even, hidden, lift, shadow, origcar, straight,
             wl_.append(w_)
         # 11-16: replaced by the reference look - plain matte column exactly the tyre's width, round top corners,
         # soft sides, long linear fade (the mirrored-tyre version above is no longer drawn)
-        res = WH.tyre_column(res, STATE["car_sharp"], STATE["wheels"], strength=0.236, mirror=False, length=0.75)   # column: exactly each tyre's width at the floor   # 11-16: opacity +5 % (0.25 -> 0.2625)
+        res = WH.tyre_column(res, STATE["car_sharp"], STATE["wheels"], strength=0.236, mirror=False, length=0.7125)   # column: exactly each tyre's width at the floor   # 11-16: opacity +5 % (0.25 -> 0.2625)
     else:
         sl_ = STATE.get("slivers") or []
         full_ = [w_ for w_ in STATE.get("wheels", []) if not any(w_ is x_ for x_ in sl_)]

@@ -563,7 +563,7 @@ def tyre_column(base, car, wheels, strength=0.25, length=1.1, soft=0.02, spread=
         Mw = cv2.GaussianBlur(M, (0, 0), sigmaX=sx + spread * tw, sigmaY=0.5, borderType=cv2.BORDER_CONSTANT)
         t = np.clip(dep / L, 0, 1)
         M = Ms * (1 - t) + Mw * t                             # sides soften with depth
-        prof = strength * np.clip(1 - dep / L, 0, 1)          # linear fade
+        prof = strength * np.clip(1 - dep / L, 0, 1) ** 1.5   # 11-17: soft fade (faster at first, long gentle tail) - same for side and front / back
         prof = np.maximum(prof, 0.6 * np.clip(1 - (dep - int(up) + 1) / 3.0, 0, 1))   # no light seam right under the tyre (at the REAL contact)
         k = (prof * M * (1 - np.clip((a[ya:yb2, xa:xb] - 0.9) / 0.1, 0, 1)))[..., None]
         col = np.asarray(w.get("col", (22, 22, 26)), np.float32).reshape(1, 1, 3)
