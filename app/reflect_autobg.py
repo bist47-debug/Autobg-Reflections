@@ -737,6 +737,11 @@ def finish(opacity, length, fade, even, hidden, lift, shadow, origcar, straight,
         return None
     P = STATE["P"]
     G.W, G.H = STATE["wh"]
+    if STATE.get("side") and globals().get("SIDE_AI") and mode == "Auto":
+        # 11-17: side shots on v2 - reflection 15 % fainter and fading out 15 % sooner than on 3/4 shots
+        opacity = 0.85 * opacity
+        tlen = 0.85 * tlen
+        length = 0.85 * length
     # no v2-car paste: it put v2's pixels at FULL strength in a margin around the car, while the
     # reflection elsewhere is at the chosen opacity -> a dark outline hugging tyres and bumper
     low = C.clean(P, hidden, lift, False, opacity, length, fade, False, even, straight, paste_car=False, color=refl_col, fstart=fstart, tstyle=tstyle, tlen=tlen).astype(np.float32)
