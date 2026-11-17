@@ -838,6 +838,8 @@ def finish(opacity, length, fade, even, hidden, lift, shadow, origcar, straight,
         # (before: the real tyre + rim mirrored at 40 %, short fade:
         #  WH.flip(res, car_sharp, wheels, t_str, t_len, fade, t_gblur, 1, 1, 0.4 * t_det, t_shift, t_con, 0.4 * t_gloss, edge=0.012))
         res = WH.tyre_column(res, STATE["car_sharp"], STATE["wheels"], strength=0.05, ellipse=True, length=0.428, up=8)   # 11-16: fade 10 % shorter (1.1 -> 0.99)   # smooth stretched oval, no square shoulders
+        # 11-17: contact shadow under each tyre (the old side flip drew it; without it the tyres looked like they float)
+        res = WH.flip(res, STATE["car_sharp"], STATE["wheels"], 0.001, t_len, fade, 0.0, 1.0, 1.0, 0.0, t_shift, t_con, 0.0)
     elif STATE.get("frontrear"):
         # front / rear view: v2 put its tyre reflections beside the tyres -> those are removed (above) and the
         # real tyres are mirrored exactly under themselves, same look as the side views
