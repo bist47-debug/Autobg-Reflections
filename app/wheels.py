@@ -547,7 +547,8 @@ def tyre_column(base, car, wheels, strength=0.25, length=1.1, soft=0.02, spread=
             # round tyre gave square shoulders - edges sticking out). The oval is longer than the fade, so it fades out
             # before its own bottom; its top is the tyre's round bottom mirrored (stretched)
             rx = tw / 2.0
-            ry = stretch * max(float(np.mean([q["th"] for q in meas])) / 2.0, 0.6 * L)   # stretch < 1: flatter oval
+            # never flatter than the tyre itself mirrored (stretch 0.5 squashed it into the shadow -> gone, 11-17)
+            ry = max(float(np.mean([q["th"] for q in meas])) / 2.0, stretch * 0.6 * L)
             u = (xs_[None, :] - cen_) / rx
             v = (dep - ry) / ry
             e = np.sqrt(u ** 2 + v ** 2)
