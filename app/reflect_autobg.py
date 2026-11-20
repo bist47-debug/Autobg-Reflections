@@ -268,6 +268,9 @@ ap.add_argument("--team", action="store_true", help="simple page for the team: u
 ap.add_argument("--password", default=None, help="--team: protect the page, login user 'autobg' + this password")
 ap.add_argument("--bright", type=float, default=25.0, help="light cars: how much lighter than the floor their reflection may be (0 = old hard cap)")
 ap.add_argument("--side_ai", action="store_true", help="side shots: v2 AI reflection (like 3/4) instead of the tyre reflection (tried 11-17, not used)")
+ap.add_argument("--fast", action="store_true", help="speed test: Lightning LoRA, 4 steps, no CFG (~10x faster AI step)")
+ap.add_argument("--steps", type=int, default=None, help="AI steps (default 20; with --fast 4)")
+ap.add_argument("--light_w", type=float, default=None, help="--fast: Lightning strength (default 1.15)")
 ap.add_argument("--shadow_dark", type=float, default=1.25, help="AutoBG shadow strength x this (1 = original)")
 A = ap.parse_args()
 SH_DARK = A.shadow_dark
@@ -682,7 +685,7 @@ def generate(car_f, sh_f, bg_f, bottom, width, height, steps, seed, fast, light_
         out = cond
     elif fast:
         pipe.set_adapters(["refl", "light"], adapter_weights=[1.0, float(light_w)])
-        steps, cfg = 4, 1.0
+        steps, cfg = (int(steps) if globals().get("A") is not None and A.steps else 4), 1.0
     else:
         pipe.set_adapters(["refl"], adapter_weights=[1.0])
         cfg = 4.0
@@ -691,6 +694,7 @@ def generate(car_f, sh_f, bg_f, bottom, width, height, steps, seed, fast, light_
                    num_inference_steps=int(steps), height=h, width=w,
                    generator=torch.Generator("cpu").manual_seed(int(seed))).images[0]
     secs = time.time() - t
+    print(f"[time] AI model: {secs:.1f} s ({int(steps)} steps, {'fast' if fast else 'full'})", flush=True)
     v2 = to_cv(out.resize((w, h), Image.LANCZOS)).astype(np.float32)
     v2, shift = align_v2(v2, to_cv(cond).astype(np.float32), np.asarray(carL)[..., 3])
     P = G.prepare(to_cv(bg.convert("RGB")).astype(np.float32), to_cv(carL, True), to_cv(shL, True), v2)
@@ -940,6 +944,12 @@ BATCH = dict(fast=False, light_w=1.15, steps=20, seed=42, bottom=0.88, width=0.5
              opacity=0.42, length=0.2, fade=1.0, even=0.6, hidden=0.4, lift=0, shadow=True, straight=1.0,
              detrend=0.0, edge_w=0.0, tone=0.1, shift_px=2, refl_front=0.0, gen_sh=False, sh_dark=0.8, sh_soft=1.0, sh_contact=0.9,
              mode="Auto", t_str=0.193, t_len=0.231, t_det=0.5, t_shift=4, t_con=1.0, t_gloss=0.65, t_gblur=0.0, refl_col=1.0, fstart=0.0, tstyle=True, tlen=0.45)
+if A.fast:
+    BATCH["fast"] = True                                # speed test (11-20)
+if A.steps:
+    BATCH["steps"] = A.steps
+if A.light_w:
+    BATCH["light_w"] = A.light_w
 
 if A.batch:
     import glob
@@ -997,6 +1007,7 @@ def run_cars(files, bg_file=None, progress=gr.Progress()):
         stem = os.path.splitext(os.path.basename(cf))[0]
         progress(i / len(cars), desc=f"{stem} ({i + 1}/{len(cars)})")
         sf = shadows.get(key(cf)[0])
+        t_car = time.time()
         try:
             bgp = (bg_file if isinstance(bg_file, str) else bg_file.name) if bg_file else None
             _, raw_v2, _ = generate(cf, sf, bgp, B["bottom"], B["width"], B["height"], B["steps"], B["seed"],
@@ -1008,6 +1019,7 @@ def run_cars(files, bg_file=None, progress=gr.Progress()):
             op = os.path.join(out_dir, f"{stem}_reflection.jpg")
             Image.fromarray(img).save(op, quality=95)
             raw_v2.save(os.path.join(out_dir, f"{stem}_v2raw.jpg"), quality=90)     # for checking what v2 drew
+            print(f"[time] {stem}: {time.time() - t_car:.1f} s total", flush=True)
             done.append(op); gallery.append((op, stem))
             if sf is None:
                 notes.append(f"{stem}: no shadow file uploaded - made without AutoBG shadow")
