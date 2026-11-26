@@ -960,6 +960,8 @@ if A.pairs:
     # ------------------------------------------------------------------ distillation pairs (teacher = this pipeline)
     import glob, json, random
     out_dir = A.pairs_out or A.pairs.rstrip("/\\") + "_pairs"
+    if WH._yolo() is None:
+        raise SystemExit("tyres.pt missing in app/models/ - the pairs must use the same tyre model as production. Upload it and start again.")
     os.makedirs(out_dir, exist_ok=True)
     k_, n_ = [int(x) for x in A.shard.split("/")]
     bds = sorted(glob.glob(os.path.join(A.backdrops, "*.*"))) if A.backdrops else [A.backdrop]
@@ -987,8 +989,9 @@ if A.pairs:
                 cv2.imwrite(os.path.join(out_dir, stem + "_tgt.png"), tgt)
                 made += 1
         except Exception as e:
-            meta["error"] = str(e)[:300]
-            print(f"[{i}] {stem}: ERROR {e}", flush=True)
+            import traceback
+            print(f"[{i}] {stem}: ERROR {e!r}\n{traceback.format_exc()[-600:]}", flush=True)
+            continue                                       # no .json -> a re-run tries this car again
         json.dump(meta, open(os.path.join(out_dir, stem + ".json"), "w"))
         el = time.time() - t0
         print(f"[{i}/{len(cuts)}] {stem}: {meta.get('view')} | pairs {made}, side {skipped} | {el / max(1, made + skipped):.1f} s/car, "

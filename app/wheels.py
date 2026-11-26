@@ -19,7 +19,7 @@ _M = {}
 
 
 def _models():
-    if not _M:
+    if "op" not in _M:
         from transformers import Owlv2Processor, Owlv2ForObjectDetection, SamModel, SamProcessor
         _M["op"] = Owlv2Processor.from_pretrained(OWL)
         _M["om"] = Owlv2ForObjectDetection.from_pretrained(OWL).to(DEV).eval()
