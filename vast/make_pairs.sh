@@ -12,10 +12,16 @@ for id in "$@"; do
 done
 echo "cars: $(ls distill/cars | grep -vc _shadow)"
 N=$(nvidia-smi -L | wc -l)
+BD=""
+if [ -d /workspace/distill/backdrops ] && [ "$(ls /workspace/distill/backdrops | wc -l)" -gt 0 ]; then
+  cp -n /workspace/floor_satin_light.png /workspace/distill/backdrops/ 2>/dev/null || true
+  BD="--backdrops /workspace/distill/backdrops"
+  echo "backdrops: $(ls /workspace/distill/backdrops | wc -l) (each car gets one at random)"
+fi
 cd /workspace/Autobg-Reflections/app
 for g in $(seq 0 $((N-1))); do
   CUDA_VISIBLE_DEVICES=$g nohup python reflect_autobg.py --full --lora /workspace/v2.safetensors \
      --backdrop /workspace/floor_satin_light.png --pairs /workspace/distill/cars \
-     --pairs_out /workspace/distill/pairs --shard $g/$N > /workspace/distill/log_gpu$g.txt 2>&1 &
+     --pairs_out /workspace/distill/pairs --shard $g/$N $BD > /workspace/distill/log_gpu$g.txt 2>&1 &
 done
 echo "started $N GPU worker(s). Progress:  tail -f /workspace/distill/log_gpu0.txt"
