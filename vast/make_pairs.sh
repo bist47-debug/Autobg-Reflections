@@ -8,9 +8,11 @@ pip install -q gdown
 mkdir -p distill/cars
 for id in "$@"; do
   f=distill/$(echo $id | cut -c1-8).zip
-  [ -f "$f.ok" ] || { gdown --fuzzy "https://drive.google.com/file/d/$id/view" -O "$f" && unzip -q -o "$f" -d distill/cars && touch "$f.ok" && rm -f "$f"; }
+  [ -f "$f.ok" ] || { gdown "$id" -O "$f" && unzip -q -o "$f" -d distill/cars && touch "$f.ok" && rm -f "$f"; }
 done
-echo "cars: $(ls distill/cars | grep -vc _shadow)"
+NC=$(find distill/cars -name "*.png" ! -name "*_shadow*" | wc -l)
+echo "cars: $NC"
+[ "$NC" -gt 0 ] || { echo "no cars downloaded - stopping (check the Drive IDs / sharing)"; exit 1; }
 N=$(nvidia-smi -L | wc -l)
 BD=""
 if [ -d /workspace/distill/backdrops ] && [ "$(ls /workspace/distill/backdrops | wc -l)" -gt 0 ]; then
