@@ -268,6 +268,10 @@ ap.add_argument("--team", action="store_true", help="simple page for the team: u
 ap.add_argument("--password", default=None, help="--team: protect the page, login user 'autobg' + this password")
 ap.add_argument("--bright", type=float, default=25.0, help="light cars: how much lighter than the floor their reflection may be (0 = old hard cap)")
 ap.add_argument("--side_ai", action="store_true", help="side shots: v2 AI reflection (like 3/4) instead of the tyre reflection (tried 11-17, not used)")
+ap.add_argument("--pairs", default=None, help="distillation: folder of car cut-outs (+ _shadow.png) -> teacher input/target pairs, then exit")
+ap.add_argument("--pairs_out", default=None, help="--pairs: output folder (default <pairs>_pairs)")
+ap.add_argument("--shard", default="0/1", help="--pairs: this machine's share, e.g. 0/4 .. 3/4 for 4 GPUs")
+ap.add_argument("--backdrops", default=None, help="--pairs: folder of floor backdrops; each car gets one at random (default: --backdrop)")
 ap.add_argument("--fast", action="store_true", help="speed test: Lightning LoRA, 4 steps, no CFG (~10x faster AI step)")
 ap.add_argument("--steps", type=int, default=None, help="AI steps (default 20; with --fast 4)")
 ap.add_argument("--light_w", type=float, default=None, help="--fast: Lightning strength (default 1.15)")
@@ -697,6 +701,7 @@ def generate(car_f, sh_f, bg_f, bottom, width, height, steps, seed, fast, light_
     print(f"[time] AI model: {secs:.1f} s ({int(steps)} steps, {'fast' if fast else 'full'})", flush=True)
     v2 = to_cv(out.resize((w, h), Image.LANCZOS)).astype(np.float32)
     v2, shift = align_v2(v2, to_cv(cond).astype(np.float32), np.asarray(carL)[..., 3])
+    STATE["v2a"] = v2                                   # aligned teacher output (distillation target)
     P = G.prepare(to_cv(bg.convert("RGB")).astype(np.float32), to_cv(carL, True), to_cv(shL, True), v2)
     # which columns really have a tyre: from YOUR tyre model (the old dark-rubber guess put v2's invented
     # far-side wheels in the wrong place). Only there v2's wheel reflections are kept as drawn; anything
@@ -950,6 +955,46 @@ if A.steps:
     BATCH["steps"] = A.steps
 if A.light_w:
     BATCH["light_w"] = A.light_w
+
+if A.pairs:
+    # ------------------------------------------------------------------ distillation pairs (teacher = this pipeline)
+    import glob, json, random
+    out_dir = A.pairs_out or A.pairs.rstrip("/\\") + "_pairs"
+    os.makedirs(out_dir, exist_ok=True)
+    k_, n_ = [int(x) for x in A.shard.split("/")]
+    bds = sorted(glob.glob(os.path.join(A.backdrops, "*.*"))) if A.backdrops else [A.backdrop]
+    B = dict(BATCH)
+    cuts = [f for f in sorted(glob.glob(os.path.join(A.pairs, "**", "*.png"), recursive=True))
+            if "_shadow" not in os.path.basename(f).lower()][k_::n_]
+    print(f"pairs: {len(cuts)} cars (shard {A.shard}), {len(bds)} backdrop(s) -> {out_dir}", flush=True)
+    t0, made, skipped = time.time(), 0, 0
+    for i, cf in enumerate(cuts, 1):
+        stem = os.path.splitext(os.path.basename(cf))[0]
+        if os.path.exists(os.path.join(out_dir, stem + ".json")):
+            continue                                       # resume: already done
+        sf = next((os.path.splitext(cf)[0] + x for x in ("_shadow.png", "_shadows.png") if os.path.exists(os.path.splitext(cf)[0] + x)), None)
+        bd = random.Random(stem).choice(bds)
+        meta = dict(car=os.path.basename(cf), shadow=bool(sf), backdrop=os.path.basename(bd), steps=B["steps"])
+        try:
+            cond, _, msg = generate(cf, sf, bd, B["bottom"], B["width"], B["height"], B["steps"], B["seed"],
+                                    B["fast"], B["light_w"], None, B["do_recut"], True)
+            meta.update(view="side" if STATE.get("side") else ("frontrear" if STATE.get("frontrear") else "34"), info=msg)
+            if STATE.get("side"):
+                skipped += 1                               # side shots don't use the AI: no pair needed
+            else:
+                cond.save(os.path.join(out_dir, stem + "_in.png"))
+                tgt = np.clip(STATE["v2a"], 0, 255).astype(np.uint8)
+                cv2.imwrite(os.path.join(out_dir, stem + "_tgt.png"), tgt)
+                made += 1
+        except Exception as e:
+            meta["error"] = str(e)[:300]
+            print(f"[{i}] {stem}: ERROR {e}", flush=True)
+        json.dump(meta, open(os.path.join(out_dir, stem + ".json"), "w"))
+        el = time.time() - t0
+        print(f"[{i}/{len(cuts)}] {stem}: {meta.get('view')} | pairs {made}, side {skipped} | {el / max(1, made + skipped):.1f} s/car, "
+              f"~{el / max(1, made + skipped) * (len(cuts) - i) / 3600:.1f} h left", flush=True)
+    print("pairs done", flush=True)
+    raise SystemExit
 
 if A.batch:
     import glob
