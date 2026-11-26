@@ -1,7 +1,7 @@
 """Distillation step 2a: teacher pairs (/workspace/distill/pairs: <car>_in.png / <car>_tgt.png / <car>.json)
 -> pix2pix-turbo dataset folder (train_A/B, test_A/B, *_prompts.json).
 - resized to 768x576 (the student works at this size; the reflection is soft, finish() upsamples it)
-- ~200 cars held out for testing, split by CAR (stock number), so photos of the same car never sit on both sides
+- ~4 % of the cars held out for testing, split by CAR (stock number), so photos of the same car never sit on both sides
 - every training pair also added mirrored left-right (x2 data)
 usage: python prep_student_data.py /workspace/distill/pairs /workspace/distill/student_data
 """
@@ -20,7 +20,8 @@ def car_id(stem):                      # "004408_03" -> "004408", "v60 d2 943_02
 stems = sorted(os.path.basename(p)[:-7] for p in glob.glob(os.path.join(src, "*_in.png")))
 stems = [s for s in stems if os.path.exists(os.path.join(src, s + "_tgt.png"))]
 cars = sorted({car_id(s) for s in stems})
-test_cars = {c for c in cars if int(hashlib.md5(c.encode()).hexdigest(), 16) % 1000 < int(1000 * 200 / max(1, len(cars)))}
+# hold out ~4 % of the cars (max ~200 test images): enough to judge the student, the rest is for training
+test_cars = set(sorted(cars, key=lambda c: hashlib.md5(c.encode()).hexdigest())[:max(5, int(0.04 * len(cars)))])
 tr, te = {}, {}
 for i, s in enumerate(stems, 1):
     a = Image.open(os.path.join(src, s + "_in.png")).convert("RGB").resize((W, H), Image.LANCZOS)
