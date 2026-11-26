@@ -11,6 +11,7 @@ if [ ! -d i2ienv ]; then
   i2ienv/bin/pip install -q "diffusers==0.25.1" "transformers==4.35.2" "huggingface_hub==0.25.2" "peft==0.7.1" \
       "accelerate==0.27.2" lpips clean-fid vision_aided_loss open-clip-torch wandb "git+https://github.com/openai/CLIP.git"
 fi
+i2ienv/bin/pip install -q "setuptools<70"      # old gdown (used by vision_aided_loss) needs pkg_resources
 [ -f distill/student_data/train_prompts.json ] || i2ienv/bin/python Autobg-Reflections/distill/prep_student_data.py distill/pairs distill/student_data
 N=$(nvidia-smi -L | wc -l)
 export WANDB_MODE=offline
