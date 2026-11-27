@@ -7,8 +7,9 @@ stretched tyre reflections on straight front/back shots.
 
 **Full replication guide:** [docs/REPLICATION.md](docs/REPLICATION.md) — every model, dataset,
 
-**Fast version (distilled student, runs on a 16 GB GPU):** [docs/DISTILLATION.md](docs/DISTILLATION.md).
 training run and locked setting used to get the current results.
+
+**Fast version (distilled student, runs on a 16 GB GPU):** [docs/DISTILLATION.md](docs/DISTILLATION.md).
 
 ## Quick start (Vast.ai)
 
