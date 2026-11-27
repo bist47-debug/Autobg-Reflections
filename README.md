@@ -6,6 +6,8 @@ matching reflection: tyre reflections on side shots, an AI reflection on 3/4 sho
 stretched tyre reflections on straight front/back shots.
 
 **Full replication guide:** [docs/REPLICATION.md](docs/REPLICATION.md) — every model, dataset,
+
+**Fast version (distilled student, runs on a 16 GB GPU):** [docs/DISTILLATION.md](docs/DISTILLATION.md).
 training run and locked setting used to get the current results.
 
 ## Quick start (Vast.ai)
