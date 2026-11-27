@@ -667,15 +667,28 @@ def to_cv(im, rgba=False):
 
 STATE = {}
 
+_T = [0.0]
+def _tick(label):
+    """stage timer (11-27): prints how long each step of one car took"""
+    now = time.time()
+    if label:
+        print(f"[time]   {label}: {now - _T[0]:.2f} s", flush=True)
+    _T[0] = now
+
+
 def generate(car_f, sh_f, bg_f, bottom, width, height, steps, seed, fast, light_w, photo_f=None, do_recut=True, skip_side=False):
     if car_f is None:
         raise gr.Error("Drop the car cut-out (transparent PNG) first.")
+    _tick(None)
     car = Image.open(car_f).convert("RGBA")
     sh = Image.open(sh_f).convert("RGBA") if sh_f else None
+    _tick("load files")
     cut_info = "AutoBG cut-out as is"
     if do_recut:
         car, cut_info = recut(car, Image.open(photo_f) if photo_f else None)
+        _tick("BiRefNet re-cut")
     bg_hi, car_hi, sh_hi = place(bg_f or A.backdrop, car, sh, bottom, width, height)
+    _tick(f"place on backdrop ({bg_hi.size[0]}x{bg_hi.size[1]})")
     w, h = model_size(*bg_hi.size)
     G.W, G.H = w, h                                    # finishing works at the model's size
     bg = bg_hi.resize((w, h), Image.LANCZOS)
@@ -683,6 +696,7 @@ def generate(car_f, sh_f, bg_f, bottom, width, height, steps, seed, fast, light_
     cond = Image.alpha_composite(bg, carL).convert("RGB")
     car_raw = to_cv(car_hi, True)
     ws = WH.detect(car_raw)
+    _tick("tyre detection")
     side = is_side(ws, car_raw)
     frontrear = (not side) and is_frontrear(ws, car_raw)
     if not side and not frontrear:
@@ -725,7 +739,9 @@ def generate(car_f, sh_f, bg_f, bottom, width, height, steps, seed, fast, light_
     secs = time.time() - t
     print(f"[time] AI model: {secs:.1f} s ({int(steps)} steps, {'fast' if fast else 'full'})", flush=True)
     v2 = to_cv(out.resize((w, h), Image.LANCZOS)).astype(np.float32)
+    _tick("AI")
     v2, shift = align_v2(v2, to_cv(cond).astype(np.float32), np.asarray(carL)[..., 3])
+    _tick("align AI output")
     STATE["v2a"] = v2                                   # aligned teacher output (distillation target)
     P = G.prepare(to_cv(bg.convert("RGB")).astype(np.float32), to_cv(carL, True), to_cv(shL, True), v2)
     # which columns really have a tyre: from YOUR tyre model (the old dark-rubber guess put v2's invented
@@ -756,11 +772,13 @@ def generate(car_f, sh_f, bg_f, bottom, width, height, steps, seed, fast, light_
         if frontrear:
             P["force_hidden"] = 0.0                    # v2's tyres are misplaced there: remove them completely
     # full-resolution layers for the final image
+    _tick("prepare")
     car_c = defringe(car_raw)
     sh_c = shadow_only(to_cv(sh_hi, True), car_raw) if sh is not None else None
     hm_ = max([wh_["box"][3] - wh_["box"][1] for wh_ in ws], default=0)
     main2_ = sorted(ws, key=lambda q: -(q["box"][3] - q["box"][1]))[:2]
     slivers = [wh_ for wh_ in ws if not any(wh_ is q for q in main2_)]
+    _tick("layers (defringe, shadow)")
     STATE.update(slivers=slivers, frontrear=frontrear, car_sharp=defringe(car_raw, False), wheels=ws, side=side, P=P, wh=(w, h), bg_hi=to_cv(bg_hi.convert("RGB")).astype(np.float32), car_hi=car_c, sh_hi=sh_c,
                  name=os.path.splitext(os.path.basename(car_f))[0].replace(" ", "_"), v2=out, cond=cond)
     return cond, out, f"view: {'SIDE -> tyre reflections' if side else ('FRONT/REAR -> v2 reflection + exact tyre reflections' if frontrear else '3-4 -> v2 reflection')} ({len(ws)} tyres); model: {secs:.1f} s ({int(steps)} steps, {'fast' if fast else 'full'}), output {bg_hi.size[0]}x{bg_hi.size[1]}, v2 car re-aligned by {shift}; {cut_info}"
@@ -1089,9 +1107,11 @@ def run_cars(files, bg_file=None, progress=gr.Progress()):
                          True, B["straight"], B["detrend"], B["edge_w"], B["tone"], B["shift_px"], B["refl_front"],
                          B["gen_sh"], B["sh_dark"], B["sh_soft"], B["sh_contact"], B["mode"], B["t_str"], B["t_len"],
                          B["t_det"], B["t_shift"], B["t_con"], B["t_gloss"], B["t_gblur"], B["refl_col"], B["fstart"], B["tstyle"], B["tlen"])
+            _tick("finish (full resolution)")
             op = os.path.join(out_dir, f"{stem}_reflection.jpg")
             Image.fromarray(img).save(op, quality=95)
             raw_v2.save(os.path.join(out_dir, f"{stem}_v2raw.jpg"), quality=90)     # for checking what v2 drew
+            _tick("save")
             print(f"[time] {stem}: {time.time() - t_car:.1f} s total", flush=True)
             done.append(op); gallery.append((op, stem))
             if sf is None:
