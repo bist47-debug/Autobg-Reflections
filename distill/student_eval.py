@@ -1,5 +1,5 @@
 """Distillation step 3: run a trained student checkpoint on the held-out test cars.
-Saves <name>_cmp.jpg = input | teacher (v2) | student, and prints the speed per image.
+Saves <name>_cmp.jpg = input | teacher (v2) | student (plan B strips: stacked top to bottom), and prints the speed per image.
 usage: python student_eval.py <model_XXXX.pkl> /workspace/distill/student_data /workspace/distill/eval_XXXX
 """
 import os, sys, json, time, torch
@@ -24,6 +24,9 @@ for i, (n, p) in enumerate(sorted(prompts.items())):
     torch.cuda.synchronize(); ts.append(time.time() - t)
     s = Image.fromarray(((y[0].float().clamp(-1, 1) * 0.5 + 0.5).permute(1, 2, 0).cpu().numpy() * 255).astype(np.uint8))
     s.save(os.path.join(out, n.replace(".png", "_student.png")))
-    cmp_ = Image.new("RGB", (a.width * 3, a.height)); cmp_.paste(a, (0, 0)); cmp_.paste(b, (a.width, 0)); cmp_.paste(s, (2 * a.width, 0))
+    if a.width > 2 * a.height:                      # plan B strips: stack input / v2 / student vertically
+        cmp_ = Image.new("RGB", (a.width, a.height * 3)); cmp_.paste(a, (0, 0)); cmp_.paste(b, (0, a.height)); cmp_.paste(s, (0, 2 * a.height))
+    else:
+        cmp_ = Image.new("RGB", (a.width * 3, a.height)); cmp_.paste(a, (0, 0)); cmp_.paste(b, (a.width, 0)); cmp_.paste(s, (2 * a.width, 0))
     cmp_.save(os.path.join(out, n.replace(".png", "_cmp.jpg")), quality=90)
 print(f"{len(ts)} test cars -> {out}   speed: {np.median(ts[3:] or ts) * 1000:.0f} ms / image (fp16, this GPU)")
