@@ -14,7 +14,13 @@ and docs/REPLICATION.md.
 Needs: pip install -r requirements.txt
 """
 import argparse, os, re, sys, time
+# 11-27: rented GPU machines report hundreds of CPU threads but give the container far fewer -> numpy /
+# OpenCV / torch start hundreds of threads that fight each other (a 0.2 s blur took 5-15 s). Cap them.
+_NT = os.environ.get("AUTOBG_THREADS", "8")
+for _v in ("OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS", "NUMEXPR_NUM_THREADS"):
+    os.environ.setdefault(_v, _NT)
 import numpy as np, cv2, torch
+cv2.setNumThreads(int(_NT)); torch.set_num_threads(int(_NT))
 from PIL import Image
 import gradio as gr
 import wheels as WH       # your trained tyre model (models/tyres.pt) + tyre reflections
