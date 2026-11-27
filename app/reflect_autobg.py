@@ -268,6 +268,8 @@ ap.add_argument("--team", action="store_true", help="simple page for the team: u
 ap.add_argument("--password", default=None, help="--team: protect the page, login user 'autobg' + this password")
 ap.add_argument("--bright", type=float, default=25.0, help="light cars: how much lighter than the floor their reflection may be (0 = old hard cap)")
 ap.add_argument("--side_ai", action="store_true", help="side shots: v2 AI reflection (like 3/4) instead of the tyre reflection (tried 11-17, not used)")
+ap.add_argument("--student", default=None, help="distilled one-step student checkpoint (model_XXXX.pkl, plan B) instead of Qwen + v2: ~0.3 s, fits a 16 GB GPU")
+ap.add_argument("--i2i", default="/workspace/img2img-turbo/src", help="--student: img2img-turbo source folder")
 ap.add_argument("--pairs", default=None, help="distillation: folder of car cut-outs (+ _shadow.png) -> teacher input/target pairs, then exit")
 ap.add_argument("--pairs_out", default=None, help="--pairs: output folder (default <pairs>_pairs)")
 ap.add_argument("--shard", default="0/1", help="--pairs: this machine's share, e.g. 0/4 .. 3/4 for 4 GPUs")
@@ -287,36 +289,48 @@ BASE = "Qwen/Qwen-Image-Edit-2511"
 W, H = G.W, G.H
 
 # ---------------------------------------------------------------------------------------------- model
-print("loading model (first time downloads ~25 GB) ...", flush=True)
-from diffusers import QwenImageEditPlusPipeline, QwenImageTransformer2DModel, GGUFQuantizationConfig
-from transformers import Qwen2_5_VLForConditionalGeneration, BitsAndBytesConfig
-from huggingface_hub import hf_hub_download
+STU = None
+if A.student:
+    # ---- distilled student (11-27): no Qwen at all
+    print("loading the distilled student ...", flush=True)
+    sys.path.insert(0, A.i2i)
+    sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "distill"))
+    from pix2pix_turbo import Pix2Pix_Turbo
+    import hint as HINT
+    STU = Pix2Pix_Turbo(pretrained_path=A.student); STU.set_eval(); STU.half()
+    STU_PROMPT = "realistic floor reflection of the car on a glossy grey showroom floor"
+    print("student ready", flush=True)
+if not A.student:
+  print("loading model (first time downloads ~25 GB) ...", flush=True)
+  from diffusers import QwenImageEditPlusPipeline, QwenImageTransformer2DModel, GGUFQuantizationConfig
+  from transformers import Qwen2_5_VLForConditionalGeneration, BitsAndBytesConfig
+  from huggingface_hub import hf_hub_download
 
-if A.full:
-    pipe = QwenImageEditPlusPipeline.from_pretrained(BASE, torch_dtype=torch.bfloat16)
-else:
-    gguf = hf_hub_download("unsloth/Qwen-Image-Edit-2511-GGUF", f"qwen-image-edit-2511-{A.quant}.gguf")
-    transformer = QwenImageTransformer2DModel.from_single_file(
-        gguf, quantization_config=GGUFQuantizationConfig(compute_dtype=torch.bfloat16),
-        torch_dtype=torch.bfloat16, config=BASE, subfolder="transformer")
-    text_encoder = Qwen2_5_VLForConditionalGeneration.from_pretrained(
-        BASE, subfolder="text_encoder", torch_dtype=torch.bfloat16, low_cpu_mem_usage=True,
-        quantization_config=BitsAndBytesConfig(load_in_4bit=True, bnb_4bit_quant_type="nf4",
-                                               bnb_4bit_compute_dtype=torch.bfloat16))
-    pipe = QwenImageEditPlusPipeline.from_pretrained(BASE, transformer=transformer, text_encoder=text_encoder,
-                                                     torch_dtype=torch.bfloat16)
-pipe.load_lora_weights(A.lora, adapter_name="refl")
-# 4-step distilled LoRA (lightx2v): ~15x fewer model passes than 30 steps with CFG
-pipe.load_lora_weights("lightx2v/Qwen-Image-Edit-2511-Lightning",
-                       weight_name="Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors", adapter_name="light")
-if A.full:
-    pipe.to("cuda")
-elif A.lowvram:
-    pipe.enable_sequential_cpu_offload()
-else:
-    pipe.enable_model_cpu_offload()
-pipe.set_progress_bar_config(disable=False)
-print("model ready", flush=True)
+  if A.full:
+      pipe = QwenImageEditPlusPipeline.from_pretrained(BASE, torch_dtype=torch.bfloat16)
+  else:
+      gguf = hf_hub_download("unsloth/Qwen-Image-Edit-2511-GGUF", f"qwen-image-edit-2511-{A.quant}.gguf")
+      transformer = QwenImageTransformer2DModel.from_single_file(
+          gguf, quantization_config=GGUFQuantizationConfig(compute_dtype=torch.bfloat16),
+          torch_dtype=torch.bfloat16, config=BASE, subfolder="transformer")
+      text_encoder = Qwen2_5_VLForConditionalGeneration.from_pretrained(
+          BASE, subfolder="text_encoder", torch_dtype=torch.bfloat16, low_cpu_mem_usage=True,
+          quantization_config=BitsAndBytesConfig(load_in_4bit=True, bnb_4bit_quant_type="nf4",
+                                                 bnb_4bit_compute_dtype=torch.bfloat16))
+      pipe = QwenImageEditPlusPipeline.from_pretrained(BASE, transformer=transformer, text_encoder=text_encoder,
+                                                       torch_dtype=torch.bfloat16)
+  pipe.load_lora_weights(A.lora, adapter_name="refl")
+  # 4-step distilled LoRA (lightx2v): ~15x fewer model passes than 30 steps with CFG
+  pipe.load_lora_weights("lightx2v/Qwen-Image-Edit-2511-Lightning",
+                         weight_name="Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors", adapter_name="light")
+  if A.full:
+      pipe.to("cuda")
+  elif A.lowvram:
+      pipe.enable_sequential_cpu_offload()
+  else:
+      pipe.enable_model_cpu_offload()
+  pipe.set_progress_bar_config(disable=False)
+  print("model ready", flush=True)
 
 # ------------------------------------------------------------------------------------------ placement
 def align(car, sh):
@@ -687,13 +701,24 @@ def generate(car_f, sh_f, bg_f, bottom, width, height, steps, seed, fast, light_
     if skip_side and side and not globals().get("SIDE_AI"):
         # side view gets the tyre reflection - v2 isn't used, so don't spend ~35 s running it
         out = cond
+    elif STU is not None:
+        steps = 1
     elif fast:
         pipe.set_adapters(["refl", "light"], adapter_weights=[1.0, float(light_w)])
         steps, cfg = (int(steps) if globals().get("A") is not None and A.steps else 4), 1.0
     else:
         pipe.set_adapters(["refl"], adapter_weights=[1.0])
         cfg = 4.0
-    if not (skip_side and side and not globals().get("SIDE_AI")):
+    if STU is not None and not (skip_side and side and not globals().get("SIDE_AI")):
+        # distilled student: bottom-half strip with the mirror hint -> v2-style reflection, pasted back
+        import torchvision.transforms.functional as TF
+        in_rgb = np.asarray(cond); bg_rgb = np.asarray(bg.convert("RGB"))
+        s_in, y0_ = HINT.make_input(in_rgb, bg_rgb)
+        with torch.no_grad():
+            y_ = STU(TF.to_tensor(s_in).unsqueeze(0).cuda().half(), STU_PROMPT)
+        s_out = ((y_[0].float().clamp(-1, 1) * 0.5 + 0.5).permute(1, 2, 0).cpu().numpy() * 255).astype(np.uint8)
+        out = Image.fromarray(HINT.unstrip(in_rgb, s_out, y0_))
+    elif not (skip_side and side and not globals().get("SIDE_AI")):
         out = pipe(image=[cond], prompt=PROMPT, negative_prompt=" ", true_cfg_scale=cfg,
                    num_inference_steps=int(steps), height=h, width=w,
                    generator=torch.Generator("cpu").manual_seed(int(seed))).images[0]
